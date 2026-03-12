@@ -1,0 +1,367 @@
+﻿<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OgrodzeniePRO – Wycena Montażu</title>
+  <meta name="description" content="Kalkulator wyceny montażu ogrodzenia. Działa offline.">
+  <meta name="theme-color" content="#1a2332">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="OgrodzeniePRO">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+
+<body>
+
+  <!-- ═══════════════ NAGŁÓWEK ═══════════════ -->
+  <header class="app-header">
+    <div class="app-logo">
+      <svg viewBox="0 0 32 32" fill="none">
+        <rect x="2" y="8" width="4" height="20" fill="#f5a623" rx="1" />
+        <rect x="8" y="4" width="16" height="24" fill="#2e4560" rx="2" />
+        <rect x="8" y="10" width="16" height="3" fill="#3a5878" />
+        <rect x="8" y="17" width="16" height="3" fill="#3a5878" />
+        <rect x="26" y="8" width="4" height="20" fill="#f5a623" rx="1" />
+      </svg>
+      <div>
+        <div class="app-title">OgrodzeniePRO</div>
+        <div class="app-subtitle">Wycena montażu</div>
+      </div>
+    </div>
+    <button class="pwa-btn" id="pwaInstallBtn">Zainstaluj</button>
+  </header>
+
+  <!-- ═══════════════ NAWIGACJA ═══════════════ -->
+  <nav class="tab-nav">
+    <button class="tab-btn active" id="tab-klient" onclick="showTab('klient')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+      </svg>
+      Klient
+    </button>
+    <button class="tab-btn" id="tab-zestawy" onclick="showTab('zestawy')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="3" y1="6" x2="21" y2="6" />
+        <line x1="3" y1="12" x2="21" y2="12" />
+        <line x1="3" y1="18" x2="21" y2="18" />
+      </svg>
+      Zestawy
+    </button>
+    <button class="tab-btn" id="tab-dodatki" onclick="showTab('dodatki')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3" />
+        <path
+          d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
+      </svg>
+      Dodatki
+    </button>
+    <button class="tab-btn" id="tab-cennik" onclick="showTab('cennik')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="1" x2="12" y2="23" />
+        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+      </svg>
+      Cennik
+    </button>
+    <button class="tab-btn" id="tab-podsumowanie" onclick="showTab('podsumowanie')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+        <line x1="16" y1="13" x2="8" y2="13" />
+        <line x1="16" y1="17" x2="8" y2="17" />
+      </svg>
+      Raport
+    </button>
+  </nav>
+
+  <!-- ═══════════════ TAB: KLIENT ═══════════════ -->
+  <div class="tab-content active" id="content-klient">
+    <div class="card">
+      <div class="card-title">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
+        Dane klienta
+      </div>
+      <div class="form-row">
+        <label for="k-nazwa">Nazwa / imię i nazwisko</label>
+        <input type="text" id="k-nazwa" placeholder="np. Jan Kowalski" oninput="onKlientChange()">
+      </div>
+      <div class="form-row">
+        <label for="k-adres">Adres / lokalizacja</label>
+        <input type="text" id="k-adres" placeholder="np. ul. Leśna 5, Warszawa" oninput="onKlientChange()">
+      </div>
+      <div class="form-row" style="align-items:flex-start">
+        <label>Geolokalizacja</label>
+        <div style="display:flex;flex-direction:column;gap:6px;flex:1">
+          <div style="display:flex;gap:6px;align-items:center">
+            <button class="btn btn-ghost btn-sm" onclick="pobierzGeo()" id="k-geo-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                style="vertical-align:-2px">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+              Pobierz GPS
+            </button>
+            <button class="btn btn-ghost btn-sm" id="k-geo-clear" style="display:none" onclick="wyczyscGeo()">✕
+              Usuń</button>
+          </div>
+          <div id="k-geo-display" style="display:none;font-size:.78rem;color:var(--text3)"></div>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label for="k-tel">Telefon</label>
+          <input type="tel" id="k-tel" placeholder="np. 500 000 000" oninput="onKlientChange()">
+        </div>
+        <div class="form-row">
+          <label for="k-data">Data wyceny</label>
+          <input type="date" id="k-data" oninput="onKlientChange()">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Jednostka długości</div>
+      <div class="jednostki-row">
+        <button class="jed-btn active" id="jed-m" onclick="setJednostka('m')">Metry (m)</button>
+        <button class="jed-btn" id="jed-mm" onclick="setJednostka('mm')">Milimetry (mm)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ TAB: ZESTAWY ═══════════════ -->
+  <div class="tab-content" id="content-zestawy">
+    <div class="card">
+      <div class="card-title">Dodaj odcinek ogrodzenia</div>
+      <div class="form-row">
+        <label for="nowy-nazwa">Nazwa odcinka (opcjonalnie)</label>
+        <input type="text" id="nowy-nazwa" placeholder="np. Ogrodzenie frontowe">
+      </div>
+      <div class="form-row">
+        <label for="nowy-dl" id="nowy-dl-label">Długość (m)</label>
+        <input type="number" id="nowy-dl" placeholder="np. 25" min="0.01" step="0.01"
+          onkeydown="if(event.key==='Enter') dodajZestaw()">
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label for="nowy-typ-panelu">Typ panelu</label>
+          <select id="nowy-typ-panelu"></select>
+        </div>
+        <div class="form-row">
+          <label for="nowy-typ-slupka">Typ słupka</label>
+          <select id="nowy-typ-slupka"></select>
+        </div>
+      </div>
+      <div class="form-row" style="margin-top:4px">
+        <label for="nowy-brama-typ">Brama (opcjonalnie)</label>
+        <select id="nowy-brama-typ" onchange="onNowaBramaTypChange()"></select>
+      </div>
+      <div id="nowy-brama-extra" style="display:none;padding:6px 0 4px">
+        <div class="form-grid">
+          <div class="form-row">
+            <label>Szerokość bramy (mm)</label>
+            <input type="number" id="nowy-brama-szer" value="4000" min="100" step="100">
+          </div>
+          <div class="form-row">
+            <label>Cena (zł)</label>
+            <input type="number" id="nowy-brama-cena" min="0" step="10">
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Strona wstawienia</label>
+          <div class="jednostki-row">
+            <button class="jed-btn active" id="nowy-brama-btn-lewa" onclick="setNowaBramaStrona('lewa')">← Lewa</button>
+            <button class="jed-btn" id="nowy-brama-btn-prawa" onclick="setNowaBramaStrona('prawa')">Prawa →</button>
+          </div>
+        </div>
+        <div class="form-row">
+          <label id="nowy-brama-odl-label">Odległość od strony (m)</label>
+          <input type="number" id="nowy-brama-odl" placeholder="np. 3" min="0" step="0.01">
+        </div>
+      </div>
+      <div class="form-row" style="margin-top:4px">
+        <label for="nowy-furtka-typ">Furtka (opcjonalnie)</label>
+        <select id="nowy-furtka-typ" onchange="onNowaFurtkaTypChange()"></select>
+      </div>
+      <div id="nowy-furtka-extra" style="display:none;padding:6px 0 4px">
+        <div class="form-grid">
+          <div class="form-row">
+            <label>Szerokość furtki (mm)</label>
+            <input type="number" id="nowy-furtka-szer" value="1000" min="100" step="100">
+          </div>
+          <div class="form-row">
+            <label>Cena (zł)</label>
+            <input type="number" id="nowy-furtka-cena" min="0" step="10">
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Strona wstawienia</label>
+          <div class="jednostki-row">
+            <button class="jed-btn active" id="nowy-furtka-btn-lewa" onclick="setNowaFurtkaStrona('lewa')">←
+              Lewa</button>
+            <button class="jed-btn" id="nowy-furtka-btn-prawa" onclick="setNowaFurtkaStrona('prawa')">Prawa →</button>
+          </div>
+        </div>
+        <div class="form-row">
+          <label id="nowy-furtka-odl-label">Odległość od strony (m)</label>
+          <input type="number" id="nowy-furtka-odl" placeholder="np. 3" min="0" step="0.01">
+        </div>
+      </div>
+      <div class="field-error" id="nowy-error"></div>
+      <button class="btn btn-primary btn-full" onclick="dodajZestaw()" style="margin-top:8px">
+        + Dodaj zestaw
+      </button>
+    </div>
+    <div id="zestawy-lista"></div>
+  </div>
+
+  <!-- ═══════════════ TAB: DODATKI ═══════════════ -->
+  <div class="tab-content" id="content-dodatki">
+    <div class="card">
+      <div class="card-title">Usługi dodatkowe</div>
+
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Transport</div>
+          <div class="toggle-desc">Ryczałt wg cennika</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="d-transport" onchange="onDodatkiChange()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div id="d-transport-extra" style="display:none;padding:12px 0 4px">
+        <label>Kwota transportu (puste = z cennika)</label>
+        <input type="number" id="d-transport-kwota" placeholder="Zostaw puste = domyślna" min="0" step="10"
+          oninput="onDodatkiChange()">
+      </div>
+
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Demontaż starego ogrodzenia</div>
+          <div class="toggle-desc">Wg cennika za mb</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="d-demontaz" onchange="onDodatkiChange()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div id="d-demontaz-extra" style="display:none;padding:12px 0 4px">
+        <label>Liczba metrów do demontażu</label>
+        <input type="number" id="d-demontaz-mb" placeholder="np. 20" min="0.1" step="0.5" oninput="onDodatkiChange()">
+      </div>
+
+      <div id="d-dynamiczne-pozycje"></div>
+
+    </div>
+
+    <div class="card">
+      <div class="card-title">Uwagi do wyceny</div>
+      <div class="form-row">
+        <textarea id="d-uwagi" placeholder="Uwagi, warunki, czas realizacji..." oninput="onDodatkiChange()"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ TAB: CENNIK ═══════════════ -->
+  <div class="tab-content" id="content-cennik">
+    <div class="card">
+      <div class="card-title">Typy paneli</div>
+      <div id="cennik-panele"></div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="dodajTypCennik('panel')">+ Dodaj typ
+        panelu</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Typy słupków</div>
+      <div id="cennik-slupki"></div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="dodajTypCennik('slupek')">+ Dodaj typ
+        słupka</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Typy bram</div>
+      <div id="cennik-bramy"></div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="dodajTypCennik('brama')">+ Dodaj typ
+        bramy</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Typy furtek</div>
+      <div id="cennik-furtki"></div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="dodajTypCennik('furtka')">+ Dodaj typ
+        furtki</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Stawki podstawowe</div>
+      <table class="cennik-table">
+        <thead>
+          <tr>
+            <th>Pozycja</th>
+            <th>Cena</th>
+            <th>Jedn.</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="cennik-stawki-tbody"></tbody>
+      </table>
+      <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="dodajPozycjeDodatkowa()">+ Dodaj
+        pozycję</button>
+    </div>
+
+    <div class="row-actions">
+      <button class="btn btn-ghost" onclick="resetCennika()">Przywróć domyślne</button>
+      <button class="btn btn-ghost" onclick="eksportCennik()">Eksportuj cennik</button>
+      <label class="btn btn-ghost" style="cursor:pointer">
+        Importuj cennik
+        <input type="file" accept=".json" style="display:none" onchange="importCennik(event)">
+      </label>
+    </div>
+  </div>
+
+  <!-- ═══════════════ TAB: RAPORT ═══════════════ -->
+  <div class="tab-content" id="content-podsumowanie">
+    <div id="raport-container"></div>
+    <div class="card hide-on-print" id="korekta-container" style="margin-top: 16px;">
+      <div class="form-row">
+        <label>Ręczna korekta ceny (PLN - "minus" dla rabatu, "plus" dla dopłaty)</label>
+        <input type="number" id="rap-korekta" step="1" placeholder="np. -100 lub 200" oninput="onKorektaChange()">
+      </div>
+    </div>
+    <div class="content-actions row-actions">
+      <button class="btn btn-primary" onclick="drukuj()">Drukuj / PDF</button>
+      <button class="btn btn-ghost" onclick="kopiujSMS()">Udostępnij / SMS</button>
+      <button class="btn btn-ghost" onclick="eksportujWycene()">Eksport JSON</button>
+      <label class="btn btn-ghost" style="cursor:pointer">
+        Import JSON
+        <input type="file" accept=".json" style="display:none" onchange="importujWycene(event)">
+      </label>
+      <button class="btn btn-danger" onclick="nowaWycena()">
+        Nowa wycena
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══════════════ PASEK DOLNY ═══════════════ -->
+  <div class="bottom-bar">
+    <div>
+      <div class="bottom-label">Razem</div>
+      <div class="bottom-suma" id="bottom-suma">0,00 zł</div>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="showTab('podsumowanie')">Raport →</button>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <!-- ═══════════════ JAVASCRIPT ═══════════════ -->
+  <script src="./app.js"></script>
+</body>
+
+</html>
