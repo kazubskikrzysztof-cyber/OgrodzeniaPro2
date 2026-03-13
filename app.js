@@ -92,12 +92,16 @@ function czytajWstawke(prefix, suffix, jed, domyslnaSz, stalaStrona = null) {
     ? stalaStrona
     : (document.getElementById(`${prefix}-strona${suffix}`)?.value || 'lewa');
 
+  const typSlupkaRaw = document.getElementById(`${prefix}-slupek${suffix}`)?.value;
+  const typSlupkaId = (typSlupkaRaw && typSlupkaRaw !== '') ? typSlupkaRaw : null;
+
   return {
     typId: typId,
     szerokosc_mm: sz,
     cena_zl: cn,
     strona: strona,
     odleglosc_m: odlRaw === null ? null : (jed === 'mm' ? odlRaw / 1000 : odlRaw),
+    typSlupkaId: typSlupkaId,
   };
 }
 
@@ -192,13 +196,18 @@ function obliczZestaw(z) {
   for (const w of wstawki) {
     const seg = obliczFenceSegment((w.posOdLewej - cursor) / 1000, panelMM, slupekMM, typPanel, typSlupek);
     if (seg) segmenty.push(seg);
-    const kSlupkiW = zaokr(2 * typSlupek.cena_zl);
+    // Słupek własny wstawki (jeśli wybrany) lub fallback na słupek ogrodzenia
+    const typSlupekW = (w.el.typSlupkaId
+      ? c.typySlupkow.find(t => t.id === w.el.typSlupkaId)
+      : null) || typSlupek;
+    const kSlupkiW = zaokr(2 * typSlupekW.cena_zl);
     const kObejmyW = zaokr(6 * c.obejma_zl.wartosc);
     const kBF = zaokr(w.el.cena_zl);
     segmenty.push({
       typ: w.typ, el: w.el, szerokosc_mm: w.szerokosc_mm,
       nSlupkow: 2, nObejm: 6, kSlupki: kSlupkiW, kObejmy: kObejmyW,
-      kBF, kRazem: zaokr(kSlupkiW + kObejmyW + kBF)
+      kBF, kRazem: zaokr(kSlupkiW + kObejmyW + kBF),
+      typSlupek: typSlupekW, slupekMM: typSlupekW.szerokosc_mm,
     });
     cursor = w.posOdLewej + w.szerokosc_mm;
   }
@@ -283,7 +292,7 @@ function generujSVG(obl) {
   let totalVisMM = 0;
   for (const seg of obl.segmenty) {
     if (seg.typ === 'ogr') totalVisMM += seg.dlugoscMM;
-    else totalVisMM += 2 * obl.slupekMM + seg.szerokosc_mm;
+    else totalVisMM += 2 * (seg.slupekMM ?? obl.slupekMM) + seg.szerokosc_mm;
   }
   const skala = Math.min(MAX_W / Math.max(totalVisMM, 1), 0.15);
 
@@ -348,7 +357,7 @@ function generujSVG(obl) {
       const kolor = seg.typ === 'brama' ? CBR : CF;
       const etykieta = seg.typ === 'brama' ? 'B' : 'F';
 
-      const sw = Math.max(2, Math.round(obl.slupekMM * skala));
+      const sw = Math.max(2, Math.round((seg.slupekMM ?? obl.slupekMM) * skala));
       s += `<rect x="${x}" y="5" width="${sw}" height="${H - 5}" fill="none" stroke="${CS}" stroke-width="1"/>`;
       x += sw;
 
@@ -370,7 +379,7 @@ function generujSVG(obl) {
       }
       x += bw;
 
-      const sw2 = Math.max(2, Math.round(obl.slupekMM * skala));
+      const sw2 = Math.max(2, Math.round((seg.slupekMM ?? obl.slupekMM) * skala));
       s += `<rect x="${x}" y="5" width="${sw2}" height="${H - 5}" fill="none" stroke="${CS}" stroke-width="1"/>`;
       x += sw2;
     }
@@ -484,7 +493,14 @@ function htmlZestaw_widok(z, i) {
           <span class="val">${formatZl(obl.kPanel)}</span>
         </div>
         <div class="suma-row">
-          <span class="lbl">Słupki (${obl.nSlupkow} × ${formatZl(obl.typSlupek.cena_zl)})</span>
+          <span class="lbl">${(() => {
+            const maInnySlupek = obl.segmenty.some(
+              s => s.typ !== 'ogr' && s.typSlupek && s.typSlupek.id !== obl.typSlupek.id
+            );
+            return maInnySlupek
+              ? `Słupki (${obl.nSlupkow} szt., różne typy)`
+              : `Słupki (${obl.nSlupkow} × ${formatZl(obl.typSlupek.cena_zl)})`;
+          })()}</span>
           <span class="val">${formatZl(obl.kSlupki)}</span>
         </div>
         <div class="suma-row">
@@ -519,6 +535,10 @@ function htmlZestaw_edycja(z, i) {
     `<option value="${escHtml(t.id)}" ${z.brama?.typId === t.id ? 'selected' : ''}>${escHtml(t.nazwa)}</option>`).join('');
   const optFurtki = '<option value="">Brak</option>' + stan.cennik.typyFurtek.map(t =>
     `<option value="${escHtml(t.id)}" ${z.furtka?.typId === t.id ? 'selected' : ''}>${escHtml(t.nazwa)}</option>`).join('');
+  const optSlupkiBramy = '<option value="">Jak ogrodzenie</option>' + stan.cennik.typySlupkow.map(t =>
+    `<option value="${escHtml(t.id)}" ${z.brama?.typSlupkaId === t.id ? 'selected' : ''}>${escHtml(t.nazwa)}</option>`).join('');
+  const optSlupkiFurtki = '<option value="">Jak ogrodzenie</option>' + stan.cennik.typySlupkow.map(t =>
+    `<option value="${escHtml(t.id)}" ${z.furtka?.typSlupkaId === t.id ? 'selected' : ''}>${escHtml(t.nazwa)}</option>`).join('');
 
   return `
   <div class="zestaw-item edytowany">
@@ -572,6 +592,9 @@ function htmlZestaw_edycja(z, i) {
                  value="${z.brama?.odleglosc_m != null ? (jed === 'mm' ? z.brama.odleglosc_m * 1000 : z.brama.odleglosc_m) : ''}"
                  placeholder="np. 3" min="0" step="${jed === 'mm' ? '100' : '0.01'}">
         </div>
+        <div class="form-row"><label>Typ słupka bramy</label>
+          <select id="edit-brama-slupek-${z.id}">${optSlupkiBramy}</select>
+        </div>
       </div>
       <div class="form-row">
         <label>Furtka</label>
@@ -596,6 +619,9 @@ function htmlZestaw_edycja(z, i) {
           <input type="number" id="edit-furtka-odl-${z.id}"
                  value="${z.furtka?.odleglosc_m != null ? (jed === 'mm' ? z.furtka.odleglosc_m * 1000 : z.furtka.odleglosc_m) : ''}"
                  placeholder="np. 3" min="0" step="${jed === 'mm' ? '100' : '0.01'}">
+        </div>
+        <div class="form-row"><label>Typ słupka furtki</label>
+          <select id="edit-furtka-slupek-${z.id}">${optSlupkiFurtki}</select>
         </div>
       </div>
       <div class="zestaw-actions">
@@ -757,6 +783,17 @@ function odswiezSelecty() {
   populujSelect('nowy-typ-slupka', stan.cennik.typySlupkow);
   populujSelectZBrakiem('nowy-brama-typ', stan.cennik.typyBram);
   populujSelectZBrakiem('nowy-furtka-typ', stan.cennik.typyFurtek);
+  populujSelectZFallbackiem('nowy-brama-slupek', stan.cennik.typySlupkow);
+  populujSelectZFallbackiem('nowy-furtka-slupek', stan.cennik.typySlupkow);
+}
+
+function populujSelectZFallbackiem(id, typy, etykieta = 'Jak ogrodzenie') {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const prev = el.value;
+  el.innerHTML = `<option value="">${escHtml(etykieta)}</option>` +
+    typy.map(t => `<option value="${escHtml(t.id)}">${escHtml(t.nazwa)}</option>`).join('');
+  el.value = typy.find(t => t.id === prev) ? prev : '';
 }
 
 function populujSelect(id, typy, selectedId) {
@@ -861,7 +898,7 @@ function renderRaport() {
             <span class="v">${formatZl(seg.kBF)}</span>
           </div>
           <div class="rap-row rap-indent">
-            <span class="l">${escHtml(obl.typSlupek.nazwa)} × 2 szt. (słupki ${etyk.toLowerCase()})</span>
+            <span class="l">${escHtml(seg.typSlupek?.nazwa ?? obl.typSlupek.nazwa)} × 2 szt. (słupki ${etyk.toLowerCase()})</span>
             <span class="v">${formatZl(seg.kSlupki)}</span>
           </div>
           <div class="rap-row rap-indent">
@@ -1010,9 +1047,15 @@ function migrujDane(zapis) {
   // Migracja zestawów: dodaj typ panelu/słupka jeśli brakuje
   const defP = zapis.cennik.typyPaneli[0]?.id || 'p_std';
   const defS = zapis.cennik.typySlupkow[0]?.id || 's_std';
-  zapis.zestawy = (zapis.zestawy || []).map(z => ({
-    typPaneluId: defP, typSlupkaId: defS, brama: null, furtka: null, ...z,
-  }));
+  zapis.zestawy = (zapis.zestawy || []).map(z => {
+    const znorm = { typPaneluId: defP, typSlupkaId: defS, brama: null, furtka: null, ...z };
+    // Migracja: dodaj typSlupkaId do wstawek jeśli brak (pole wprowadzone w v2.1)
+    if (znorm.brama && znorm.brama.typSlupkaId === undefined)
+      znorm.brama = { typSlupkaId: null, ...znorm.brama };
+    if (znorm.furtka && znorm.furtka.typSlupkaId === undefined)
+      znorm.furtka = { typSlupkaId: null, ...znorm.furtka };
+    return znorm;
+  });
 
   return zapis;
 }
