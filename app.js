@@ -1688,8 +1688,8 @@ function drukujSzczegolowy() {
 }
 
 function drukujKompaktowy() {
-  renderRaportKompaktowy();
-  showTab('podsumowanie');
+  showTab('podsumowanie');       // wywołuje renderRaport() wewnętrznie
+  renderRaportKompaktowy();      // nadpisuje szczegółowy – musi być po showTab
   window.print();
 }
 
