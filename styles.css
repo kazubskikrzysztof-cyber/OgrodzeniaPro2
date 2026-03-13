@@ -920,6 +920,58 @@
       font-size: .8rem;
     }
 
+    /* ── Tabela kompaktowego raportu ── */
+    .ztab {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .85rem;
+      margin-bottom: 20px;
+    }
+
+    .ztab th,
+    .ztab td {
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+
+    .ztab th {
+      font-size: .75rem;
+      font-weight: 600;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    .ztab th.num,
+    .ztab td.num {
+      text-align: right;
+    }
+
+    .ztab tr.ztab-group td {
+      padding-top: 14px;
+      padding-bottom: 4px;
+      font-size: .75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--accent);
+      border-bottom: 2px solid var(--accent);
+    }
+
+    .ztab tfoot tr.ztab-sub-total td {
+      font-weight: 600;
+      color: var(--text2);
+      border-top: 1px solid var(--border);
+    }
+
+    .ztab tfoot tr.ztab-total td {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--green);
+      border-top: 2px solid var(--green);
+    }
+
     /* ── Druk ── */
     @media print {
 
@@ -983,5 +1035,25 @@
 
       .rap-svg svg text {
         fill: #333 !important;
+      }
+
+      .ztab th,
+      .ztab td {
+        border-color: #ccc;
+        color: #000;
+      }
+
+      .ztab tr.ztab-group td {
+        color: #555;
+        border-bottom-color: #999;
+      }
+
+      .ztab tfoot tr.ztab-sub-total td {
+        color: #333;
+      }
+
+      .ztab tfoot tr.ztab-total td {
+        color: #27ae60;
+        border-top-color: #27ae60;
       }
     }

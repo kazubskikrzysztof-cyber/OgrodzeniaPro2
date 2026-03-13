@@ -1535,17 +1535,17 @@ function nowaWycena() {
 }
 
 /* ═══════════════════════════════════════════════
-   RAPORT KOMPAKTOWY – zestawienie zbiorcze materiałów
+   RAPORT KOMPAKTOWY – tabela zbiorcza materiałów
    ═══════════════════════════════════════════════ */
 function renderRaportKompaktowy() {
   const k = stan.klient;
   const dod = obliczDodatki();
 
   // Agregacja materiałów ze wszystkich zestawów
-  const panele = new Map();  // typId → {typ, ilosc, koszt}
-  const slupki = new Map();  // typId → {typ, ilosc, koszt}
-  const bramy = new Map();   // typId → {typ, ilosc, koszt}
-  const furtki = new Map();  // typId → {typ, ilosc, koszt}
+  const panele = new Map();
+  const slupki = new Map();
+  const bramy  = new Map();
+  const furtki = new Map();
   let totalObejm = 0, kObejmy = 0;
   let totalMb = 0, kRobociz = 0;
   let sumaZestawow = 0;
@@ -1560,10 +1560,9 @@ function renderRaportKompaktowy() {
   for (const z of stan.zestawy) {
     const obl = obliczZestaw(z);
     if (obl.blad) continue;
-    totalMb += z.dlugoscM;
+    totalMb = zaokr(totalMb + z.dlugoscM);
     kRobociz = zaokr(kRobociz + obl.kRobociz);
     sumaZestawow = zaokr(sumaZestawow + obl.kRazem);
-
     for (const seg of obl.segmenty) {
       totalObejm += seg.nObejm;
       kObejmy = zaokr(kObejmy + seg.kObejmy);
@@ -1584,84 +1583,101 @@ function renderRaportKompaktowy() {
 
   const total = zaokr(sumaZestawow + dod.suma + (stan.dodatki.korekta || 0));
 
-  // HTML nagłówka (klient)
+  // Pomocniki do budowania tabeli
+  const trGrupa = (label) =>
+    `<tr class="ztab-group"><td colspan="4">${escHtml(label)}</td></tr>`;
+
+  const trWiersz = (nazwa, ilosc, cenaJedn, koszt) =>
+    `<tr>
+      <td>${escHtml(nazwa)}</td>
+      <td class="num">${ilosc}</td>
+      <td class="num">${cenaJedn}</td>
+      <td class="num">${formatZl(koszt)}</td>
+    </tr>`;
+
+  const sekcja = (label, mapa, formatIlosc, formatCena) => {
+    if (!mapa.size) return '';
+    return trGrupa(label) +
+      [...mapa.values()].map(e => trWiersz(
+        e.typ.nazwa, formatIlosc(e), formatCena(e), e.koszt
+      )).join('');
+  };
+
+  const cenaPanelu = (e) => e.ilosc > 0 ? formatZl(zaokr(e.koszt / e.ilosc)) : '—';
+  const cenaSlupka = (e) => e.ilosc > 0 ? formatZl(zaokr(e.koszt / e.ilosc)) : '—';
+
+  // Dane klienta
   const geoUrl = k.geo ? `https://www.google.com/maps?q=${k.geo.lat},${k.geo.lon}` : null;
-  const klientHtml = [
-    k.nazwa && `<div class="rap-row"><span class="l">Nazwa</span><span class="v">${escHtml(k.nazwa)}</span></div>`,
-    k.adres && `<div class="rap-row"><span class="l">Adres</span><span class="v">${escHtml(k.adres)}</span></div>`,
-    k.geo && `<div class="rap-row"><span class="l">GPS</span><span class="v"><a href="${geoUrl}" target="_blank" rel="noopener" style="color:var(--accent)">${k.geo.lat.toFixed(6)}, ${k.geo.lon.toFixed(6)}</a></span></div>`,
-    k.telefon && `<div class="rap-row"><span class="l">Telefon</span><span class="v">${escHtml(k.telefon)}</span></div>`,
-    k.data && `<div class="rap-row"><span class="l">Data</span><span class="v">${escHtml(k.data)}</span></div>`,
-  ].filter(Boolean).join('');
-
-  // Pomocnik do wiersza materiału
-  const wiersz = (nazwa, ilosc, jed, koszt) => `
-    <div class="rap-row">
-      <span class="l">${escHtml(nazwa)}</span>
-      <span class="v" style="display:flex;gap:16px;justify-content:flex-end">
-        <span style="color:var(--text3)">${ilosc} ${escHtml(jed)}</span>
-        <span>${formatZl(koszt)}</span>
-      </span>
-    </div>`;
-
-  // Sekcje materiałów
-  const sHtml = (tytul, mapa, jed) => mapa.size === 0 ? '' : `
-    <div class="rap-section">
-      <div class="rap-title">${tytul}</div>
-      ${[...mapa.values()].map(e => wiersz(e.typ.nazwa, e.ilosc, jed, e.koszt)).join('')}
-    </div>`;
+  const klientLinie = [
+    k.nazwa && `<strong>${escHtml(k.nazwa)}</strong>`,
+    k.adres && escHtml(k.adres),
+    k.telefon && `tel. ${escHtml(k.telefon)}`,
+    k.geo && `<a href="${geoUrl}" target="_blank" rel="noopener" style="color:var(--accent)">${k.geo.lat.toFixed(5)}, ${k.geo.lon.toFixed(5)}</a>`,
+    k.data && `Data: ${escHtml(k.data)}`,
+  ].filter(Boolean).join(' &nbsp;·&nbsp; ');
 
   document.getElementById('raport-container').innerHTML = `
     <div class="card">
-      <div style="margin-bottom:24px;padding-bottom:12px;border-bottom:1px dashed var(--border);text-align:center;color:var(--text2);font-size:0.85rem;">
-        <strong>MB Ogrodzenia Maciej Bochyński</strong><br>Tel. 533 811 244
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;
+                  padding-bottom:12px;margin-bottom:16px;border-bottom:2px solid var(--accent)">
+        <div>
+          <div style="font-size:1rem;font-weight:700;color:var(--accent)">ZESTAWIENIE MATERIAŁÓW</div>
+          <div style="font-size:.78rem;color:var(--text3);margin-top:2px">
+            ${stan.zestawy.length} odcinek(-ów) · ${formatN(totalMb, 2)} mb łącznie
+          </div>
+        </div>
+        <div style="text-align:right;font-size:.8rem;color:var(--text2)">
+          <strong>MB Ogrodzenia Maciej Bochyński</strong><br>Tel. 533 811 244
+        </div>
       </div>
 
-      ${klientHtml ? `<div class="rap-section"><div class="rap-title">Klient</div>${klientHtml}</div>` : ''}
+      ${klientLinie ? `<div style="font-size:.84rem;color:var(--text2);margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)">${klientLinie}</div>` : ''}
 
-      <div class="rap-section">
-        <div class="rap-title">Zestawienie materiałów – ${stan.zestawy.length} odcinek(ów), ${formatN(totalMb, 2)} mb</div>
-      </div>
-
-      ${sHtml('Panele', panele, 'szt.')}
-      ${sHtml('Słupki', slupki, 'szt.')}
-      ${bramy.size || furtki.size ? `
-        ${sHtml('Bramy', bramy, 'szt.')}
-        ${sHtml('Furtki', furtki, 'szt.')}` : ''}
-
-      ${totalObejm > 0 ? `
-        <div class="rap-section">
-          <div class="rap-title">Materiały montażowe</div>
-          ${wiersz('Obejmy', totalObejm, 'szt.', kObejmy)}
-          ${wiersz(`Robocizna (${formatN(totalMb, 2)} mb)`, '', '', kRobociz)}
-        </div>` : ''}
-
-      ${dod.pozycje.length > 0 ? `
-        <div class="rap-section">
-          <div class="rap-title">Usługi dodatkowe</div>
-          ${dod.pozycje.map(p => `
-            <div class="rap-row">
-              <span class="l">${escHtml(p.nazwa)}</span>
-              <span class="v">${formatZl(p.kwota)}</span>
-            </div>`).join('')}
-        </div>` : ''}
+      <table class="ztab">
+        <thead>
+          <tr>
+            <th>Element</th>
+            <th class="num">Ilość</th>
+            <th class="num">Cena jedn.</th>
+            <th class="num">Razem</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${sekcja('Panele', panele,
+              e => `${e.ilosc} szt.`, cenaPanelu)}
+          ${sekcja('Słupki', slupki,
+              e => `${e.ilosc} szt.`, cenaSlupka)}
+          ${sekcja('Bramy', bramy,
+              e => `${e.ilosc} szt.`, e => '—')}
+          ${sekcja('Furtki', furtki,
+              e => `${e.ilosc} szt.`, e => '—')}
+          ${trGrupa('Montaż')}
+          ${trWiersz('Obejmy', `${totalObejm} szt.`,
+              formatZl(stan.cennik.obejma_zl.wartosc), kObejmy)}
+          ${trWiersz(`Robocizna`, `${formatN(totalMb, 2)} mb`,
+              formatZl(stan.cennik.robocizna_zl_mb.wartosc) + '/mb', kRobociz)}
+        </tbody>
+        <tfoot>
+          <tr class="ztab-sub-total">
+            <td colspan="3">Ogrodzenie razem</td>
+            <td class="num">${formatZl(sumaZestawow)}</td>
+          </tr>
+          ${dod.pozycje.map(p =>
+            `<tr><td colspan="3">${escHtml(p.nazwa)}</td><td class="num">${formatZl(p.kwota)}</td></tr>`
+          ).join('')}
+          ${stan.dodatki.korekta ? `<tr><td colspan="3">Korekta ręczna</td><td class="num">${formatZl(stan.dodatki.korekta)}</td></tr>` : ''}
+          <tr class="ztab-total">
+            <td colspan="3">RAZEM DO ZAPŁATY</td>
+            <td class="num">${formatZl(total)}</td>
+          </tr>
+        </tfoot>
+      </table>
 
       ${stan.dodatki.uwagi ? `
-        <div class="rap-section">
-          <div class="rap-title">Uwagi</div>
-          <div style="font-size:.88rem;color:var(--text2);white-space:pre-wrap">${escHtml(stan.dodatki.uwagi)}</div>
+        <div style="margin-top:12px;font-size:.84rem;color:var(--text2)">
+          <strong>Uwagi:</strong><br>
+          <span style="white-space:pre-wrap">${escHtml(stan.dodatki.uwagi)}</span>
         </div>` : ''}
-
-      ${stan.dodatki.korekta ? `
-        <div class="rap-row" style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px">
-          <span class="l">Korekta ręczna</span>
-          <span class="v">${formatZl(stan.dodatki.korekta)}</span>
-        </div>` : ''}
-
-      <div class="rap-total">
-        <span class="l">RAZEM DO ZAPŁATY</span>
-        <span class="v">${formatZl(total)}</span>
-      </div>
     </div>`;
 }
 
@@ -1675,7 +1691,6 @@ function drukujKompaktowy() {
   renderRaportKompaktowy();
   showTab('podsumowanie');
   window.print();
-  renderRaport(); // przywróć widok szczegółowy po druku
 }
 
 function kopiujSMS() {
