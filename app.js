@@ -127,8 +127,10 @@ function toast(msg, isError = false) {
    OBLICZENIA
    ═══════════════════════════════════════════════ */
 
-// Oblicza jeden odcinek ogrodzenia (bez wstawek)
-function obliczFenceSegment(dlugoscM, panelMM, slupekMM, typPanel, typSlupek) {
+// Oblicza jeden odcinek ogrodzenia (bez wstawek).
+// usunPierwszySlupek / usunOstatniSlupek – słupki graniczne należą do sąsiedniej bramy/furtki.
+function obliczFenceSegment(dlugoscM, panelMM, slupekMM, typPanel, typSlupek,
+  usunPierwszySlupek = false, usunOstatniSlupek = false) {
   const c = stan.cennik;
   const segmentMM = panelMM + slupekMM;
   const dlugoscMM = Math.round(dlugoscM * 1000);
@@ -138,7 +140,10 @@ function obliczFenceSegment(dlugoscM, panelMM, slupekMM, typPanel, typSlupek) {
   const resztaMM = dlugoscMM - nSeg * segmentMM;
   const maRestke = resztaMM > 0;
   const nPaneli = maRestke ? nSeg + 1 : nSeg;
-  const nSlupkow = maRestke ? nSeg + 2 : nSeg + 1;
+  // Graniczne słupki przy wstawkach należą do bramy/furtki – nie liczymy ich tutaj
+  let nSlupkow = maRestke ? nSeg + 2 : nSeg + 1;
+  if (usunPierwszySlupek) nSlupkow = Math.max(0, nSlupkow - 1);
+  if (usunOstatniSlupek) nSlupkow = Math.max(0, nSlupkow - 1);
   const nObejm = nSlupkow * 3;
 
   const kPanel = zaokr(nPaneli * typPanel.cena_zl);
@@ -191,10 +196,16 @@ function obliczZestaw(z) {
   }
 
   // Buduj listę segmentów: odcinek ogrodzenia ↔ wstawka (brama/furtka)
+  // Słupki na styku ogrodzenie–wstawka są WSPÓLNE: należą do bramy/furtki,
+  // więc odcinki panelowe nie liczą słupków granicznych.
   const segmenty = [];
   let cursor = 0;
   for (const w of wstawki) {
-    const seg = obliczFenceSegment((w.posOdLewej - cursor) / 1000, panelMM, slupekMM, typPanel, typSlupek);
+    const seg = obliczFenceSegment(
+      (w.posOdLewej - cursor) / 1000, panelMM, slupekMM, typPanel, typSlupek,
+      cursor > 0,  // lewy słupek należy do poprzedniej wstawki
+      true         // prawy słupek należy do tej wstawki
+    );
     if (seg) segmenty.push(seg);
     // Słupek własny wstawki (jeśli wybrany) lub fallback na słupek ogrodzenia
     const typSlupekW = (w.el.typSlupkaId
@@ -211,7 +222,11 @@ function obliczZestaw(z) {
     });
     cursor = w.posOdLewej + w.szerokosc_mm;
   }
-  const lastSeg = obliczFenceSegment((totalMM - cursor) / 1000, panelMM, slupekMM, typPanel, typSlupek);
+  const lastSeg = obliczFenceSegment(
+    (totalMM - cursor) / 1000, panelMM, slupekMM, typPanel, typSlupek,
+    wstawki.length > 0,  // lewy słupek należy do ostatniej wstawki
+    false                // prawy słupek = koniec ogrodzenia, liczymy normalnie
+  );
   if (lastSeg) segmenty.push(lastSeg);
 
   const ogrSegmenty = segmenty.filter(s => s.typ === 'ogr');
