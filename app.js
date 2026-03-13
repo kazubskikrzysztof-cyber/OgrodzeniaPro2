@@ -948,9 +948,12 @@ function renderRaport() {
 
   document.getElementById('raport-container').innerHTML = `
     <div class="card">
-      <div style="margin-bottom: 24px; padding-bottom: 12px; border-bottom: 1px dashed var(--border); text-align: center; color: var(--text2); font-size: 0.85rem;">
-        <strong>MB Ogrodzenia Maciej Bochyński</strong><br>
-        Tel. 533 811 244
+      <div style="margin-bottom:24px;padding-bottom:12px;border-bottom:1px dashed var(--border);display:flex;align-items:center;gap:14px">
+        <img src="logo.png" alt="Logo" style="width:56px;height:56px;object-fit:contain;border-radius:6px;flex-shrink:0">
+        <div style="color:var(--text2);font-size:0.85rem">
+          <strong style="font-size:1rem;color:var(--text)">MB Ogrodzenia Maciej Bochyński</strong><br>
+          Tel. 533 811 244
+        </div>
       </div>
 
       ${klientHtml ? `
@@ -1632,8 +1635,11 @@ function renderRaportKompaktowy() {
             ${stan.zestawy.length} odcinek(-ów) · ${formatN(totalMb, 2)} mb łącznie
           </div>
         </div>
-        <div style="text-align:right;font-size:.8rem;color:var(--text2)">
-          <strong>MB Ogrodzenia Maciej Bochyński</strong><br>Tel. 533 811 244
+        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+          <div style="text-align:right;font-size:.8rem;color:var(--text2)">
+            <strong>MB Ogrodzenia Maciej Bochyński</strong><br>Tel. 533 811 244
+          </div>
+          <img src="logo.png" alt="Logo" style="width:48px;height:48px;object-fit:contain;border-radius:6px">
         </div>
       </div>
 
