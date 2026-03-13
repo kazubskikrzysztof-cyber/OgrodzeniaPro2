@@ -32,6 +32,7 @@ function nowyStanDomyslny() {
     dodatki: {
       transport: { aktywny: false, kwota: null },
       demontaz: { aktywny: false, mb: 0 },
+      robocizna: { aktywny: true },
       uwagi: '',
       dynamiczne: {},
       korekta: 0
@@ -148,7 +149,8 @@ function obliczFenceSegment(dlugoscM, panelMM, slupekMM, typPanel, typSlupek,
 
   const kPanel = zaokr(nPaneli * typPanel.cena_zl);
   const kSlupki = zaokr(nSlupkow * typSlupek.cena_zl);
-  const kRobociz = zaokr(dlugoscM * c.robocizna_zl_mb.wartosc);
+  const robociznaAktywna = stan.dodatki.robocizna?.aktywny !== false;
+  const kRobociz = robociznaAktywna ? zaokr(dlugoscM * c.robocizna_zl_mb.wartosc) : 0;
   const kObejmy = zaokr(nObejm * c.obejma_zl.wartosc);
   const kRazem = zaokr(kPanel + kSlupki + kRobociz + kObejmy);
 
@@ -522,10 +524,10 @@ function htmlZestaw_widok(z, i) {
           <span class="lbl">Obejmy (${obl.nObejm} × ${formatZl(stan.cennik.obejma_zl.wartosc)})</span>
           <span class="val">${formatZl(obl.kObejmy)}</span>
         </div>
-        <div class="suma-row">
+        ${obl.kRobociz ? `<div class="suma-row">
           <span class="lbl">Robocizna (${formatN(z.dlugoscM, 2)} mb × ${formatZl(stan.cennik.robocizna_zl_mb.wartosc)})</span>
           <span class="val">${formatZl(obl.kRobociz)}</span>
-        </div>
+        </div>` : ''}
         ${obl.kBrama ? `<div class="suma-row"><span class="lbl">Brama</span><span class="val">${formatZl(obl.kBrama)}</span></div>` : ''}
         ${obl.kFurtka ? `<div class="suma-row"><span class="lbl">Furtka</span><span class="val">${formatZl(obl.kFurtka)}</span></div>` : ''}
       </div>
@@ -895,10 +897,10 @@ function renderRaport() {
             <span class="l">Obejmy × ${seg.nObejm} szt.</span>
             <span class="v">${formatZl(seg.kObejmy)}</span>
           </div>
-          <div class="rap-row rap-indent">
+          ${seg.kRobociz ? `<div class="rap-row rap-indent">
             <span class="l">Robocizna (${formatN(seg.dlugoscMM / 1000, 3)} mb × ${formatZl(stan.cennik.robocizna_zl_mb.wartosc)})</span>
             <span class="v">${formatZl(seg.kRobociz)}</span>
-          </div>`;
+          </div>` : ''}`;
       } else {
         const etyk = seg.typ === 'brama' ? 'Brama' : 'Furtka';
         const nazwaEl = seg.el?.typId
@@ -1054,6 +1056,7 @@ function migrujDane(zapis) {
   zapis.dodatki = {
     transport: { aktywny: false, kwota: null, ...(dod.transport || {}) },
     demontaz: { aktywny: false, mb: 0, ...(dod.demontaz || {}) },
+    robocizna: { aktywny: true, ...(dod.robocizna || {}) },
     uwagi: dod.uwagi || '',
     korekta: dod.korekta || 0,
     dynamiczne: dod.dynamiczne || {},
@@ -1113,6 +1116,7 @@ function wczytajUI() {
 
   chk('d-transport', d.transport.aktywny);
   chk('d-demontaz', d.demontaz.aktywny);
+  chk('d-robocizna', d.robocizna?.aktywny !== false);
 
   if (d.transport.kwota !== null) sel('d-transport-kwota', d.transport.kwota);
   sel('d-demontaz-mb', d.demontaz.mb || '');
@@ -1196,6 +1200,8 @@ function onDodatkiChange() {
   d.transport.kwota = parseNum(document.getElementById('d-transport-kwota')?.value, null);
   d.demontaz.aktywny = document.getElementById('d-demontaz')?.checked || false;
   d.demontaz.mb = parseNum(document.getElementById('d-demontaz-mb')?.value, 0);
+  if (!d.robocizna) d.robocizna = { aktywny: true };
+  d.robocizna.aktywny = document.getElementById('d-robocizna')?.checked !== false;
   d.uwagi = document.getElementById('d-uwagi')?.value || '';
 
   document.getElementById('d-transport-extra').style.display = d.transport.aktywny ? 'block' : 'none';
@@ -1654,8 +1660,8 @@ function renderRaportKompaktowy() {
           ${trGrupa('Montaż')}
           ${trWiersz('Obejmy', `${totalObejm} szt.`,
               formatZl(stan.cennik.obejma_zl.wartosc), kObejmy)}
-          ${trWiersz(`Robocizna`, `${formatN(totalMb, 2)} mb`,
-              formatZl(stan.cennik.robocizna_zl_mb.wartosc) + '/mb', kRobociz)}
+          ${kRobociz ? trWiersz(`Robocizna`, `${formatN(totalMb, 2)} mb`,
+              formatZl(stan.cennik.robocizna_zl_mb.wartosc) + '/mb', kRobociz) : ''}
         </tbody>
         <tfoot>
           <tr class="ztab-sub-total">
