@@ -4,6 +4,7 @@
    STAŁE
    ═══════════════════════════════════════════════ */
 const STORAGE_KEY = 'ogrPRO_stan';
+const JEDNOSTKI = { M: 'm', MM: 'mm' };
 
 const CENNIK_DOMYSLNY = {
   robocizna_zl_mb: { nazwa: 'Robocizna', wartosc: 30, jednostka: 'zł/mb' },
@@ -780,52 +781,27 @@ function populujSelectZBrakiem(id, typy, selectedId) {
 let _nowaBramaStrona = 'lewa';
 let _nowaFurtkaStrona = 'lewa';
 
-function setNowaBramaStrona(strona) {
-  _nowaBramaStrona = strona;
-  document.getElementById('nowy-brama-btn-lewa').classList.toggle('active', strona === 'lewa');
-  document.getElementById('nowy-brama-btn-prawa').classList.toggle('active', strona === 'prawa');
+function _setWstawkaStrona(rodzaj, strona) {
+  if (rodzaj === 'brama') _nowaBramaStrona = strona;
+  else _nowaFurtkaStrona = strona;
+  document.getElementById(`nowy-${rodzaj}-btn-lewa`).classList.toggle('active', strona === 'lewa');
+  document.getElementById(`nowy-${rodzaj}-btn-prawa`).classList.toggle('active', strona === 'prawa');
 }
-function setNowaFurtkaStrona(strona) {
-  _nowaFurtkaStrona = strona;
-  document.getElementById('nowy-furtka-btn-lewa').classList.toggle('active', strona === 'lewa');
-  document.getElementById('nowy-furtka-btn-prawa').classList.toggle('active', strona === 'prawa');
-}
-function onNowaBramaTypChange() {
-  const sel = document.getElementById('nowy-brama-typ');
+function setNowaBramaStrona(strona) { _setWstawkaStrona('brama', strona); }
+function setNowaFurtkaStrona(strona) { _setWstawkaStrona('furtka', strona); }
+function _onWstawkaTypChange(prefix, sufiks, typy) {
+  const sel = document.getElementById(`${prefix}-typ${sufiks}`);
   const show = sel.value !== '';
-  document.getElementById('nowy-brama-extra').style.display = show ? 'block' : 'none';
+  document.getElementById(`${prefix}-extra${sufiks}`).style.display = show ? 'block' : 'none';
   if (show) {
-    const typ = stan.cennik.typyBram.find(t => t.id === sel.value);
-    if (typ) document.getElementById('nowy-brama-cena').value = typ.cena_zl;
+    const typ = typy.find(t => t.id === sel.value);
+    if (typ) document.getElementById(`${prefix}-cena${sufiks}`).value = typ.cena_zl;
   }
 }
-function onNowaFurtkaTypChange() {
-  const sel = document.getElementById('nowy-furtka-typ');
-  const show = sel.value !== '';
-  document.getElementById('nowy-furtka-extra').style.display = show ? 'block' : 'none';
-  if (show) {
-    const typ = stan.cennik.typyFurtek.find(t => t.id === sel.value);
-    if (typ) document.getElementById('nowy-furtka-cena').value = typ.cena_zl;
-  }
-}
-function onEdytBramaTypChange(id) {
-  const sel = document.getElementById(`edit-brama-typ-${id}`);
-  const show = sel.value !== '';
-  document.getElementById(`edit-brama-extra-${id}`).style.display = show ? 'block' : 'none';
-  if (show) {
-    const typ = stan.cennik.typyBram.find(t => t.id === sel.value);
-    if (typ) document.getElementById(`edit-brama-cena-${id}`).value = typ.cena_zl;
-  }
-}
-function onEdytFurtkaTypChange(id) {
-  const sel = document.getElementById(`edit-furtka-typ-${id}`);
-  const show = sel.value !== '';
-  document.getElementById(`edit-furtka-extra-${id}`).style.display = show ? 'block' : 'none';
-  if (show) {
-    const typ = stan.cennik.typyFurtek.find(t => t.id === sel.value);
-    if (typ) document.getElementById(`edit-furtka-cena-${id}`).value = typ.cena_zl;
-  }
-}
+function onNowaBramaTypChange() { _onWstawkaTypChange('nowy-brama', '', stan.cennik.typyBram); }
+function onNowaFurtkaTypChange() { _onWstawkaTypChange('nowy-furtka', '', stan.cennik.typyFurtek); }
+function onEdytBramaTypChange(id) { _onWstawkaTypChange('edit-brama', `-${id}`, stan.cennik.typyBram); }
+function onEdytFurtkaTypChange(id) { _onWstawkaTypChange('edit-furtka', `-${id}`, stan.cennik.typyFurtek); }
 
 /* ═══════════════════════════════════════════════
    RENDEROWANIE – RAPORT
@@ -996,51 +972,57 @@ function zapiszDane() {
   }
 }
 
+// Migracja danych z localStorage (stare wersje → bieżąca struktura)
+function migrujDane(zapis) {
+  // Migracja v1→v2: stary format cennika (panel_zl, slupek_zl…)
+  if (zapis.cennik && 'panel_zl' in zapis.cennik) {
+    const cSt = zapis.cennik;
+    zapis.cennik = deepCopy(CENNIK_DOMYSLNY);
+    zapis.cennik.typyPaneli[0].cena_zl = cSt.panel_zl?.wartosc ?? 150;
+    zapis.cennik.typyPaneli[0].szerokosc_mm = zapis.ustawienia?.dlugoscPanelu_mm ?? 2500;
+    zapis.cennik.typySlupkow[0].cena_zl = cSt.slupek_zl?.wartosc ?? 80;
+    zapis.cennik.typySlupkow[0].szerokosc_mm = zapis.ustawienia?.szerokoscSlupka_mm ?? 40;
+    if (cSt.robocizna_zl_mb) zapis.cennik.robocizna_zl_mb.wartosc = cSt.robocizna_zl_mb.wartosc;
+    if (cSt.transport_zl) zapis.cennik.transport_zl.wartosc = cSt.transport_zl.wartosc;
+    if (cSt.demontaz_zl_mb) zapis.cennik.demontaz_zl_mb.wartosc = cSt.demontaz_zl_mb.wartosc;
+    if (cSt.brama_zl) zapis.cennik.typyBram[0].cena_zl = cSt.brama_zl.wartosc ?? 1200;
+    if (cSt.furtka_zl) zapis.cennik.typyFurtek[0].cena_zl = cSt.furtka_zl.wartosc ?? 450;
+  }
+
+  // Migracja cennika: dodaj pozycjeDodatkowe jeśli brak
+  if (!Array.isArray(zapis.cennik?.pozycjeDodatkowe)) {
+    if (zapis.cennik) zapis.cennik.pozycjeDodatkowe = [];
+  }
+
+  // Migracja ustawień: usuń stare pola
+  zapis.ustawienia = { jednostka: zapis.ustawienia?.jednostka || JEDNOSTKI.M };
+
+  // Migracja dodatki: usuń brama/furtka (przeniesione do zestawów)
+  const dod = zapis.dodatki || {};
+  zapis.dodatki = {
+    transport: { aktywny: false, kwota: null, ...(dod.transport || {}) },
+    demontaz: { aktywny: false, mb: 0, ...(dod.demontaz || {}) },
+    uwagi: dod.uwagi || '',
+    korekta: dod.korekta || 0,
+    dynamiczne: dod.dynamiczne || {},
+  };
+
+  // Migracja zestawów: dodaj typ panelu/słupka jeśli brakuje
+  const defP = zapis.cennik.typyPaneli[0]?.id || 'p_std';
+  const defS = zapis.cennik.typySlupkow[0]?.id || 's_std';
+  zapis.zestawy = (zapis.zestawy || []).map(z => ({
+    typPaneluId: defP, typSlupkaId: defS, brama: null, furtka: null, ...z,
+  }));
+
+  return zapis;
+}
+
 function wczytajDane() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
     const domyslny = nowyStanDomyslny();
-    const zapis = JSON.parse(raw);
-
-    // Migracja v1→v2: stary format cennika (panel_zl, slupek_zl…)
-    if (zapis.cennik && 'panel_zl' in zapis.cennik) {
-      const cSt = zapis.cennik;
-      zapis.cennik = deepCopy(CENNIK_DOMYSLNY);
-      zapis.cennik.typyPaneli[0].cena_zl = cSt.panel_zl?.wartosc ?? 150;
-      zapis.cennik.typyPaneli[0].szerokosc_mm = zapis.ustawienia?.dlugoscPanelu_mm ?? 2500;
-      zapis.cennik.typySlupkow[0].cena_zl = cSt.slupek_zl?.wartosc ?? 80;
-      zapis.cennik.typySlupkow[0].szerokosc_mm = zapis.ustawienia?.szerokoscSlupka_mm ?? 40;
-      if (cSt.robocizna_zl_mb) zapis.cennik.robocizna_zl_mb.wartosc = cSt.robocizna_zl_mb.wartosc;
-      if (cSt.transport_zl) zapis.cennik.transport_zl.wartosc = cSt.transport_zl.wartosc;
-      if (cSt.demontaz_zl_mb) zapis.cennik.demontaz_zl_mb.wartosc = cSt.demontaz_zl_mb.wartosc;
-      if (cSt.brama_zl) zapis.cennik.typyBram[0].cena_zl = cSt.brama_zl.wartosc ?? 1200;
-      if (cSt.furtka_zl) zapis.cennik.typyFurtek[0].cena_zl = cSt.furtka_zl.wartosc ?? 450;
-    }
-
-    // Migracja cennika: dodaj pozycjeDodatkowe jeśli brak
-    if (!Array.isArray(zapis.cennik?.pozycjeDodatkowe)) {
-      if (zapis.cennik) zapis.cennik.pozycjeDodatkowe = [];
-    }
-
-    // Migracja ustawień: usuń stare pola
-    zapis.ustawienia = { jednostka: zapis.ustawienia?.jednostka || 'm' };
-
-    // Migracja dodatki: usuń brama/furtka (przeniesione do zestawów)
-    const dod = zapis.dodatki || {};
-    zapis.dodatki = {
-      transport: { aktywny: false, kwota: null, ...(dod.transport || {}) },
-      demontaz: { aktywny: false, mb: 0, ...(dod.demontaz || {}) },
-      uwagi: dod.uwagi || '',
-      korekta: dod.korekta || 0,
-    };
-
-    // Migracja zestawów: dodaj typ panelu/słupka jeśli brakuje
-    const defP = zapis.cennik.typyPaneli[0]?.id || 'p_std';
-    const defS = zapis.cennik.typySlupkow[0]?.id || 's_std';
-    zapis.zestawy = (zapis.zestawy || []).map(z => ({
-      typPaneluId: defP, typSlupkaId: defS, brama: null, furtka: null, ...z,
-    }));
+    const zapis = migrujDane(JSON.parse(raw));
 
     // Merge z domyślnymi (zapewnia nowe pola w przyszłości)
     stan = {
