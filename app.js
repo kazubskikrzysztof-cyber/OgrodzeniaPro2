@@ -1052,7 +1052,7 @@ function migrujDane(zapis) {
   }
 
   // Migracja ustawień: usuń stare pola
-  zapis.ustawienia = { jednostka: zapis.ustawienia?.jednostka || JEDNOSTKI.M };
+  zapis.ustawienia = { jednostka: JEDNOSTKI.M };
 
   // Migracja dodatki: usuń brama/furtka (przeniesione do zestawów)
   const dod = zapis.dodatki || {};
@@ -1113,9 +1113,7 @@ function wczytajUI() {
   sel('k-data', k.data);
   aktualizujGeoDisplay();
 
-  document.getElementById('jed-m')?.classList.toggle('active', u.jednostka === 'm');
-  document.getElementById('jed-mm')?.classList.toggle('active', u.jednostka === 'mm');
-  document.getElementById('nowy-dl-label').textContent = `Długość (${u.jednostka})`;
+  document.getElementById('nowy-dl-label').textContent = 'Długość (m)';
 
   chk('d-transport', d.transport.aktywny);
   chk('d-demontaz', d.demontaz.aktywny);
@@ -1283,40 +1281,6 @@ function onKorektaChange() {
   }
 }
 
-function setJednostka(jed) {
-  const staryJed = stan.ustawienia.jednostka;
-  if (staryJed === jed) return;
-
-  stan.ustawienia.jednostka = jed;
-  document.getElementById('jed-m').classList.toggle('active', jed === 'm');
-  document.getElementById('jed-mm').classList.toggle('active', jed === 'mm');
-  document.getElementById('nowy-dl-label').textContent = `Długość (${jed})`;
-
-  const przeliczWartosc = (elId) => {
-    const el = document.getElementById(elId);
-    if (el && el.value !== '') {
-      const val = parseFloat(el.value.replace(',', '.'));
-      if (!isNaN(val)) {
-        el.value = jed === 'm' ? String(zaokr(val / 1000)) : String(Math.round(val * 1000));
-      }
-    }
-  };
-
-  przeliczWartosc('nowy-dl');
-  przeliczWartosc('nowy-brama-odl');
-  przeliczWartosc('nowy-furtka-odl');
-
-  const odlLbl = `Odległość od strony (${jed})`;
-  const odlStep = jed === 'mm' ? '100' : '0.01';
-  const elBO = document.getElementById('nowy-brama-odl');
-  const elFO = document.getElementById('nowy-furtka-odl');
-  document.getElementById('nowy-brama-odl-label').textContent = odlLbl;
-  document.getElementById('nowy-furtka-odl-label').textContent = odlLbl;
-  if (elBO) elBO.step = odlStep;
-  if (elFO) elFO.step = odlStep;
-  zapiszDane();
-  renderZestawy();
-}
 
 /* ═══════════════════════════════════════════════
    AKCJE – ZESTAWY
