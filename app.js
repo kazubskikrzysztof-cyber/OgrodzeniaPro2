@@ -150,8 +150,8 @@ function obliczFenceSegment(dlugoscM, panelMM, slupekMM, typPanel, typSlupek,
   const kPanel = zaokr(nPaneli * typPanel.cena_zl);
   const kSlupki = zaokr(nSlupkow * typSlupek.cena_zl);
   const robociznaAktywna = stan.dodatki.robocizna?.aktywny !== false;
-  const kRobociz = robociznaAktywna ? zaokr(dlugoscM * c.robocizna_zl_mb.wartosc) : 0;
-  const kObejmy = zaokr(nObejm * c.obejma_zl.wartosc);
+  const kRobociz = robociznaAktywna ? zaokr(dlugoscM * (c.robocizna_zl_mb?.wartosc ?? 0)) : 0;
+  const kObejmy = zaokr(nObejm * (c.obejma_zl?.wartosc ?? 0));
   const kRazem = zaokr(kPanel + kSlupki + kRobociz + kObejmy);
 
   return {
@@ -214,7 +214,7 @@ function obliczZestaw(z) {
       ? c.typySlupkow.find(t => t.id === w.el.typSlupkaId)
       : null) || typSlupek;
     const kSlupkiW = zaokr(2 * typSlupekW.cena_zl);
-    const kObejmyW = zaokr(6 * c.obejma_zl.wartosc);
+    const kObejmyW = zaokr(6 * (c.obejma_zl?.wartosc ?? 0));
     const kBF = zaokr(w.el.cena_zl);
     segmenty.push({
       typ: w.typ, el: w.el, szerokosc_mm: w.szerokosc_mm,
@@ -270,12 +270,12 @@ function obliczDodatki() {
   if (d.transport.aktywny) {
     const kwota = (d.transport.kwota !== null && d.transport.kwota >= 0)
       ? d.transport.kwota
-      : c.transport_zl.wartosc;
+      : (c.transport_zl?.wartosc ?? 0);
     suma += kwota;
     pozycje.push({ nazwa: 'Transport', kwota });
   }
   if (d.demontaz.aktywny && d.demontaz.mb > 0) {
-    const kwota = zaokr(d.demontaz.mb * c.demontaz_zl_mb.wartosc);
+    const kwota = zaokr(d.demontaz.mb * (c.demontaz_zl_mb?.wartosc ?? 0));
     suma += kwota;
     pozycje.push({ nazwa: `Demontaż (${d.demontaz.mb} mb)`, kwota });
   }
@@ -521,11 +521,11 @@ function htmlZestaw_widok(z, i) {
           <span class="val">${formatZl(obl.kSlupki)}</span>
         </div>
         <div class="suma-row">
-          <span class="lbl">Obejmy (${obl.nObejm} × ${formatZl(stan.cennik.obejma_zl.wartosc)})</span>
+          <span class="lbl">Obejmy (${obl.nObejm} × ${formatZl(stan.cennik.obejma_zl?.wartosc ?? 0)})</span>
           <span class="val">${formatZl(obl.kObejmy)}</span>
         </div>
         ${obl.kRobociz ? `<div class="suma-row">
-          <span class="lbl">Robocizna (${formatN(z.dlugoscM, 2)} mb × ${formatZl(stan.cennik.robocizna_zl_mb.wartosc)})</span>
+          <span class="lbl">Robocizna (${formatN(z.dlugoscM, 2)} mb × ${formatZl(stan.cennik.robocizna_zl_mb?.wartosc ?? 0)})</span>
           <span class="val">${formatZl(obl.kRobociz)}</span>
         </div>` : ''}
         ${obl.kBrama ? `<div class="suma-row"><span class="lbl">Brama</span><span class="val">${formatZl(obl.kBrama)}</span></div>` : ''}
@@ -655,7 +655,7 @@ function htmlZestaw_edycja(z, i) {
 function renderCennik() {
   const stawkiKlucze = ['robocizna_zl_mb', 'transport_zl', 'demontaz_zl_mb', 'obejma_zl'];
 
-  const stawkiHtml = stawkiKlucze.map(k => {
+  const stawkiHtml = stawkiKlucze.filter(k => stan.cennik[k]).map(k => {
     const poz = stan.cennik[k];
     return `<tr>
       <td><input type="text" class="cennik-input-text" value="${escHtml(poz.nazwa)}"
@@ -664,7 +664,7 @@ function renderCennik() {
                  data-klucz="${k}" oninput="walidujCennikInput(this)" onchange="zapiszCennik(this)"></td>
       <td><input type="text" class="cennik-input-unit" value="${escHtml(poz.jednostka)}"
                  data-klucz="${k}" data-pole="jednostka" onchange="zapiszCennikPole(this)"></td>
-      <td></td>
+      <td><button class="btn btn-danger btn-sm" onclick="usunStawkeStala('${k}')">✕</button></td>
     </tr>`;
   }).join('');
 
@@ -729,6 +729,14 @@ function usunPozycjeDodatkowa(id) {
   stan.cennik.pozycjeDodatkowe = (stan.cennik.pozycjeDodatkowe || []).filter(p => p.id !== id);
   zapiszDane();
   renderCennik();
+  aktualizujSume();
+}
+
+function usunStawkeStala(klucz) {
+  delete stan.cennik[klucz];
+  zapiszDane();
+  renderCennik();
+  renderZestawy();
   aktualizujSume();
 }
 
@@ -898,7 +906,7 @@ function renderRaport() {
             <span class="v">${formatZl(seg.kObejmy)}</span>
           </div>
           ${seg.kRobociz ? `<div class="rap-row rap-indent">
-            <span class="l">Robocizna (${formatN(seg.dlugoscMM / 1000, 3)} mb × ${formatZl(stan.cennik.robocizna_zl_mb.wartosc)})</span>
+            <span class="l">Robocizna (${formatN(seg.dlugoscMM / 1000, 3)} mb × ${formatZl(stan.cennik.robocizna_zl_mb?.wartosc ?? 0)})</span>
             <span class="v">${formatZl(seg.kRobociz)}</span>
           </div>` : ''}`;
       } else {
@@ -1629,9 +1637,9 @@ function renderRaportKompaktowy() {
               e => `${e.ilosc} szt.`, e => '—')}
           ${trGrupa('Montaż')}
           ${trWiersz('Obejmy', `${totalObejm} szt.`,
-              formatZl(stan.cennik.obejma_zl.wartosc), kObejmy)}
+              formatZl(stan.cennik.obejma_zl?.wartosc ?? 0), kObejmy)}
           ${kRobociz ? trWiersz(`Robocizna`, `${formatN(totalMb, 2)} mb`,
-              formatZl(stan.cennik.robocizna_zl_mb.wartosc) + '/mb', kRobociz) : ''}
+              formatZl(stan.cennik.robocizna_zl_mb?.wartosc ?? 0) + '/mb', kRobociz) : ''}
         </tbody>
         <tfoot>
           <tr class="ztab-sub-total">
