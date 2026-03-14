@@ -1844,7 +1844,7 @@ function importujWycene(event) {
    ═══════════════════════════════════════════════ */
 function showTab(id) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   document.getElementById('content-' + id)?.classList.add('active');
   document.getElementById('tab-' + id)?.classList.add('active');
   if (id === 'podsumowanie') renderRaport();

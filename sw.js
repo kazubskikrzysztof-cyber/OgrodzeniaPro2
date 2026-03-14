@@ -9,7 +9,7 @@
    ════════════════════════════════════════════════════════════════ */
 
 // Nazwa wersji cache – zmień przy aktualizacji (np. 'ogr-v2')
-const CACHE_NAZWA = 'ogr-v3';
+const CACHE_NAZWA = 'ogr-v4';
 
 // Lista plików do zapisania w cache przy instalacji
 const PLIKI_DO_CACHE = [
