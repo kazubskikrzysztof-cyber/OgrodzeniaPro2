@@ -415,7 +415,6 @@
         <div class="content-actions row-actions hide-on-print" style="margin-top:16px">
           <button class="btn btn-primary" onclick="drukujSzczegolowy()">PDF Szczegółowy</button>
           <button class="btn btn-primary" onclick="drukujKompaktowy()">PDF Kompaktowy</button>
-          <button class="btn btn-ghost" onclick="kopiujSMS()">Udostępnij / SMS</button>
           <button class="btn btn-ghost" onclick="eksportujWycene()">Eksport JSON</button>
           <label class="btn btn-ghost" style="cursor:pointer">
             Import JSON
@@ -471,9 +470,6 @@
           Import JSON
           <input type="file" accept=".json" style="display:none" onchange="importujWycene(event)">
         </label>
-        <button class="btn btn-ghost btn-full btn-sm" style="margin-top:8px" onclick="kopiujSMS()">
-          Udostępnij / SMS
-        </button>
       </div>
     </aside>
 
