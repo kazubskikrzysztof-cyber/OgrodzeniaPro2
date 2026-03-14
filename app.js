@@ -1706,6 +1706,97 @@ function drukujKompaktowy() {
 }
 
 
+/* ═══════════════════════════════════════════════
+   WYSYŁKA E-MAIL
+   ═══════════════════════════════════════════════ */
+function wyslijEmail(tryb) {
+  const k = stan.klient;
+  const dod = obliczDodatki();
+  let sumaZ = 0;
+
+  // --- nagłówek ---
+  let tekst = 'Wycena montażu ogrodzenia\n';
+  tekst += '─'.repeat(40) + '\n';
+  if (k.data)    tekst += `Data:     ${k.data}\n`;
+  if (k.nazwa)   tekst += `Klient:   ${k.nazwa}\n`;
+  if (k.adres)   tekst += `Adres:    ${k.adres}\n`;
+  if (k.telefon) tekst += `Tel.:     ${k.telefon}\n`;
+  tekst += '\n';
+
+  // --- odcinki ---
+  tekst += 'ODCINKI OGRODZENIA\n';
+  tekst += '─'.repeat(40) + '\n';
+
+  for (const [i, z] of stan.zestawy.entries()) {
+    const obl = obliczZestaw(z);
+    if (obl.blad) continue;
+    sumaZ += obl.kRazem;
+    const dl = stan.ustawienia.jednostka === 'm'
+      ? formatN(z.dlugoscM, 2) + ' m'
+      : obl.dlugoscMM + ' mm';
+    tekst += `${i + 1}. ${z.nazwa}  (${dl})  →  ${formatZl(obl.kRazem)}\n`;
+
+    if (tryb === 'szczegolowy') {
+      let segIdx = 0;
+      for (const seg of obl.segmenty) {
+        if (seg.typ === 'ogr') {
+          segIdx++;
+          const sdl = stan.ustawienia.jednostka === 'm'
+            ? formatN(seg.dlugoscMM / 1000, 2) + ' m'
+            : seg.dlugoscMM + ' mm';
+          tekst += `   Odcinek ${segIdx} (${sdl}): ${seg.nPaneli} × panel`;
+          const typP = stan.cennik.typyPaneli.find(t => t.id === z.typPaneluId);
+          if (typP) tekst += ` ${typP.nazwa}`;
+          tekst += `, ${seg.nSlupkow} × słupek`;
+          const typS = stan.cennik.typySlupkow.find(t => t.id === z.typSlupkaId);
+          if (typS) tekst += ` ${typS.nazwa}`;
+          if (seg.maRestke) tekst += `, reszta ${seg.resztaMM} mm`;
+          tekst += '\n';
+        } else {
+          const rodzaj = seg.typ === 'brama' ? 'Brama' : 'Furtka';
+          const strona = seg.strona === 'lewa' ? 'od lewej' : 'od prawej';
+          tekst += `   ${rodzaj}: ${seg.szerokosc_mm} mm, ${seg.odleglosc != null ? seg.odleglosc + ' m ' + strona : ''} → ${formatZl(seg.kRazem)}\n`;
+        }
+      }
+      tekst += `   Obejmy łącznie: ${obl.nObejm} szt.\n`;
+    }
+  }
+
+  // --- usługi dodatkowe ---
+  if (dod.pozycje.length > 0) {
+    tekst += '\nUSŁUGI DODATKOWE\n';
+    tekst += '─'.repeat(40) + '\n';
+    for (const p of dod.pozycje) {
+      tekst += `${p.nazwa.padEnd(28)} ${formatZl(p.kwota)}\n`;
+    }
+  }
+
+  // --- korekta ---
+  if (stan.dodatki.korekta) {
+    tekst += `\nKorekta: ${formatZl(stan.dodatki.korekta)}\n`;
+  }
+
+  // --- uwagi ---
+  if (stan.dodatki.uwagi) {
+    tekst += `\nUwagi:\n${stan.dodatki.uwagi}\n`;
+  }
+
+  // --- suma ---
+  const total = zaokr(sumaZ + dod.suma + (stan.dodatki.korekta || 0));
+  tekst += '\n' + '═'.repeat(40) + '\n';
+  tekst += `RAZEM: ${formatZl(total)}\n`;
+  tekst += '═'.repeat(40) + '\n';
+
+  // --- subject ---
+  const trybLabel = tryb === 'szczegolowy' ? 'szczegółowa' : 'kompaktowa';
+  let subject = `Wycena ogrodzenia (${trybLabel})`;
+  if (k.nazwa) subject += ` – ${k.nazwa}`;
+  if (k.data)  subject += ` – ${k.data}`;
+
+  const mailto = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(tekst)}`;
+  window.location.href = mailto;
+}
+
 async function eksportujWycene() {
   let nazwaKlienta = stan.klient && stan.klient.nazwa ? stan.klient.nazwa.trim() : '';
   let czystaNazwa = nazwaKlienta.replace(/[^a-zA-Z0-9ąćęłńóśźżĄĆĘŁŃÓŚŹŻ_\- ]/g, '').replace(/\s+/g, '_');

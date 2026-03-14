@@ -415,6 +415,8 @@
         <div class="content-actions row-actions hide-on-print" style="margin-top:16px">
           <button class="btn btn-primary" onclick="drukujSzczegolowy()">PDF Szczegółowy</button>
           <button class="btn btn-primary" onclick="drukujKompaktowy()">PDF Kompaktowy</button>
+          <button class="btn btn-ghost" onclick="wyslijEmail('szczegolowy')">✉ E-mail szczegółowy</button>
+          <button class="btn btn-ghost" onclick="wyslijEmail('kompaktowy')">✉ E-mail kompaktowy</button>
           <button class="btn btn-ghost" onclick="eksportujWycene()">Eksport JSON</button>
           <label class="btn btn-ghost" style="cursor:pointer">
             Import JSON
@@ -453,6 +455,18 @@
             <rect x="6" y="14" width="12" height="8" />
           </svg>
           PDF Kompaktowy
+        </button>
+      </div>
+
+      <div class="panel-divider"></div>
+
+      <div class="panel-section">
+        <div class="panel-section-title">Wyślij e-mail</div>
+        <button class="btn btn-ghost btn-full btn-sm" onclick="wyslijEmail('szczegolowy')">
+          ✉ Szczegółowy
+        </button>
+        <button class="btn btn-ghost btn-full btn-sm" style="margin-top:8px" onclick="wyslijEmail('kompaktowy')">
+          ✉ Kompaktowy
         </button>
       </div>
 
