@@ -274,6 +274,28 @@ function obliczZestaw(z) {
   }
   kPanel = zaokr(kPanel); kSlupki = zaokr(kSlupki);
   kRobociz = zaokr(kRobociz); kObejmy = zaokr(kObejmy);
+
+  // Koryguj słupki skrajne (współdzielone z sąsiednimi zestawami)
+  const cObejma = c.obejma_zl?.wartosc ?? 0;
+  const _usunSlupekSeg = (seg, typS) => {
+    if (seg.nSlupkow <= 0) return;
+    seg.nSlupkow -= 1; seg.nObejm = Math.max(0, seg.nObejm - 3);
+    seg.kSlupki = zaokr(seg.kSlupki - typS.cena_zl);
+    seg.kObejmy = zaokr(seg.kObejmy - 3 * cObejma);
+    seg.kRazem = zaokr(seg.kRazem - typS.cena_zl - 3 * cObejma);
+    nSlupkow -= 1; nObejm -= 3;
+    kSlupki = zaokr(kSlupki - typS.cena_zl);
+    kObejmy = zaokr(kObejmy - 3 * cObejma);
+  };
+  if (!(z.slupekPierwszy ?? true) && segmenty.length > 0) {
+    const s = segmenty[0];
+    _usunSlupekSeg(s, s.typ === 'ogr' ? typSlupek : (s.typSlupek ?? typSlupek));
+  }
+  if (!(z.slupekOstatni ?? true) && segmenty.length > 0) {
+    const s = segmenty[segmenty.length - 1];
+    _usunSlupekSeg(s, s.typ === 'ogr' ? typSlupek : (s.typSlupek ?? typSlupek));
+  }
+
   const kRazem = zaokr(kPanel + kSlupki + kRobociz + kObejmy + kBrama + kFurtka);
 
   return {
@@ -523,6 +545,10 @@ function htmlZestaw_widok(z, i) {
           <div class="val">${obl.resztaMM > 0 ? obl.resztaMM + ' mm' : '—'}</div>
           <div class="lbl">Reszta</div>
         </div>
+        <div class="calc-cell">
+          <div class="val">${(z.slupekPierwszy !== false ? '←' : '<span style="color:var(--text3)">←</span>')} ${(z.slupekOstatni !== false ? '→' : '<span style="color:var(--text3)">→</span>')}</div>
+          <div class="lbl">Skrajne</div>
+        </div>
       </div>
       ${htmlSegmentyWidok(obl)}
       <div class="svg-wrapper">${generujSVG(obl)}</div>
@@ -610,6 +636,17 @@ function htmlZestaw_edycja(z, i) {
         <div class="form-row">
           <label>Typ słupka</label>
           <select id="edit-typ-slupka-${z.id}">${optSlupki}</select>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Słupki skrajne</label>
+        <div style="display:flex;gap:16px;align-items:center;padding:4px 0">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.88rem">
+            <input type="checkbox" id="edit-slupek-l-${z.id}" ${z.slupekPierwszy !== false ? 'checked' : ''}> ← Lewy
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.88rem">
+            <input type="checkbox" id="edit-slupek-r-${z.id}" ${z.slupekOstatni !== false ? 'checked' : ''}> Prawy →
+          </label>
         </div>
       </div>
       <div class="form-row">
@@ -1091,7 +1128,7 @@ function migrujDane(zapis) {
   const defP = zapis.cennik.typyPaneli[0]?.id || 'p_std';
   const defS = zapis.cennik.typySlupkow[0]?.id || 's_std';
   zapis.zestawy = (zapis.zestawy || []).map(z => {
-    const znorm = { typPaneluId: defP, typSlupkaId: defS, brama: null, furtka: null, ...z };
+    const znorm = { typPaneluId: defP, typSlupkaId: defS, brama: null, furtka: null, slupekPierwszy: true, slupekOstatni: true, ...z };
     // Migracja: dodaj typSlupkaId do wstawek jeśli brak (pole wprowadzone w v2.1)
     if (znorm.brama && znorm.brama.typSlupkaId === undefined)
       znorm.brama = { typSlupkaId: null, ...znorm.brama };
@@ -1345,7 +1382,7 @@ function dodajZestaw() {
   const brama = czytajWstawke('nowy-brama', '', jed, 4000, _nowyZestaw.bramaStrona);
   const furtka = czytajWstawke('nowy-furtka', '', jed, 1000, _nowyZestaw.furtkaStrona);
 
-  const nowyZ = { id: 'z' + Date.now(), nazwa, dlugoscM, typPaneluId, typSlupkaId, brama, furtka };
+  const nowyZ = { id: 'z' + Date.now(), nazwa, dlugoscM, typPaneluId, typSlupkaId, brama, furtka, slupekPierwszy: true, slupekOstatni: true };
   const obl = obliczZestaw(nowyZ);
   if (obl.blad) {
     errEl.textContent = obl.blad;
@@ -1402,7 +1439,10 @@ function zapiszEdycje(id) {
   const brama = czytajWstawke('edit-brama', `-${id}`, jedE, 4000);
   const furtka = czytajWstawke('edit-furtka', `-${id}`, jedE, 1000);
 
-  const tmpZ = { ...z, dlugoscM: nowa, typPaneluId: noweTypPanelu, typSlupkaId: noweTypSlupka, brama, furtka };
+  const slupekPierwszy = document.getElementById(`edit-slupek-l-${id}`)?.checked ?? true;
+  const slupekOstatni = document.getElementById(`edit-slupek-r-${id}`)?.checked ?? true;
+
+  const tmpZ = { ...z, dlugoscM: nowa, typPaneluId: noweTypPanelu, typSlupkaId: noweTypSlupka, brama, furtka, slupekPierwszy, slupekOstatni };
   const obl = obliczZestaw(tmpZ);
   if (obl.blad) { toast(obl.blad, true); return; }
 
@@ -1411,6 +1451,8 @@ function zapiszEdycje(id) {
   z.typSlupkaId = noweTypSlupka;
   z.brama = brama;
   z.furtka = furtka;
+  z.slupekPierwszy = slupekPierwszy;
+  z.slupekOstatni = slupekOstatni;
   const nazwaInput = document.getElementById(`edit-nazwa-${id}`);
   if (nazwaInput) z.nazwa = nazwaInput.value.trim() || z.nazwa;
 
