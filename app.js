@@ -1382,7 +1382,10 @@ function dodajZestaw() {
   const brama = czytajWstawke('nowy-brama', '', jed, 4000, _nowyZestaw.bramaStrona);
   const furtka = czytajWstawke('nowy-furtka', '', jed, 1000, _nowyZestaw.furtkaStrona);
 
-  const nowyZ = { id: 'z' + Date.now(), nazwa, dlugoscM, typPaneluId, typSlupkaId, brama, furtka, slupekPierwszy: true, slupekOstatni: true };
+  const slupekPierwszy = document.getElementById('nowy-slupek-l')?.checked ?? true;
+  const slupekOstatni = document.getElementById('nowy-slupek-r')?.checked ?? true;
+
+  const nowyZ = { id: 'z' + Date.now(), nazwa, dlugoscM, typPaneluId, typSlupkaId, brama, furtka, slupekPierwszy, slupekOstatni };
   const obl = obliczZestaw(nowyZ);
   if (obl.blad) {
     errEl.textContent = obl.blad;
@@ -1397,6 +1400,10 @@ function dodajZestaw() {
   const ft = document.getElementById('nowy-furtka-typ');
   if (bt) { bt.value = ''; onNowaBramaTypChange(); }
   if (ft) { ft.value = ''; onNowaFurtkaTypChange(); }
+  const sl = document.getElementById('nowy-slupek-l');
+  const sr = document.getElementById('nowy-slupek-r');
+  if (sl) sl.checked = true;
+  if (sr) sr.checked = true;
 
   zapiszDane();
   renderZestawy();
