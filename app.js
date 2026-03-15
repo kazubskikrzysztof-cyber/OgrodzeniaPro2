@@ -18,6 +18,8 @@ const CENNIK_DOMYSLNY = {
   pozycjeDodatkowe: [],
 };
 
+const CENNIK_LISTA_MAP = { panel: 'typyPaneli', slupek: 'typySlupkow', brama: 'typyBram', furtka: 'typyFurtek' };
+
 /* ═══════════════════════════════════════════════
    STAN
    ═══════════════════════════════════════════════ */
@@ -122,6 +124,27 @@ function toast(msg, isError = false) {
   el.textContent = msg;
   document.getElementById('toast-container').appendChild(el);
   setTimeout(() => el.remove(), 3000);
+}
+
+function setInputError(el, hasError) {
+  el.style.borderColor = hasError ? 'var(--red)' : '';
+  return hasError;
+}
+
+function googleMapsUrl(geo) {
+  return `https://www.google.com/maps?q=${geo.lat},${geo.lon}`;
+}
+
+function formatDl(dlugoscM, dlugoscMM, dec = 3) {
+  return stan.ustawienia.jednostka === 'm'
+    ? formatN(dlugoscM, dec) + ' m'
+    : dlugoscMM + ' mm';
+}
+
+function formatSegDl(seg, dec = 3) {
+  return stan.ustawienia.jednostka === 'm'
+    ? formatN(seg.dlugoscMM / 1000, dec) + ' m'
+    : seg.dlugoscMM + ' mm';
 }
 
 /* ═══════════════════════════════════════════════
@@ -432,6 +455,22 @@ function renderZestawy() {
   ).join('');
 }
 
+function htmlSegmentyWidok(obl) {
+  let segIdx = 0;
+  return obl.segmenty.map(seg => {
+    if (seg.typ === 'ogr') {
+      segIdx++;
+      const sdl = formatSegDl(seg);
+      const rst = seg.maRestke ? ` · reszta ${seg.resztaMM} mm` : '';
+      return `<div class="seg-info">Odcinek ${segIdx} (${sdl}): <strong>${seg.nPaneli}</strong> pan. · <strong>${seg.nSlupkow}</strong> sł.${rst}</div>`;
+    } else {
+      const kolor = seg.typ === 'brama' ? 'var(--green)' : '#9b59b6';
+      const etyk = seg.typ === 'brama' ? 'Brama' : 'Furtka';
+      return `<div class="seg-info" style="color:${kolor}">${etyk}: ${seg.szerokosc_mm} mm · 2 słupki · ${formatZl(seg.kRazem)}</div>`;
+    }
+  }).join('');
+}
+
 function htmlZestaw_widok(z, i) {
   const obl = obliczZestaw(z);
 
@@ -446,9 +485,7 @@ function htmlZestaw_widok(z, i) {
     </div>`;
   }
 
-  const dl = stan.ustawienia.jednostka === 'm'
-    ? formatN(z.dlugoscM, 3) + ' m'
-    : obl.dlugoscMM + ' mm';
+  const dl = formatDl(z.dlugoscM, obl.dlugoscMM);
 
   const jed2 = stan.ustawienia.jednostka;
   function odlStr(wst) {
@@ -487,22 +524,7 @@ function htmlZestaw_widok(z, i) {
           <div class="lbl">Reszta</div>
         </div>
       </div>
-      ${(() => {
-      const jed = stan.ustawienia.jednostka;
-      let segIdx = 0;
-      return obl.segmenty.map(seg => {
-        if (seg.typ === 'ogr') {
-          segIdx++;
-          const sdl = jed === 'm' ? formatN(seg.dlugoscMM / 1000, 3) + ' m' : seg.dlugoscMM + ' mm';
-          const rst = seg.maRestke ? ` · reszta ${seg.resztaMM} mm` : '';
-          return `<div class="seg-info">Odcinek ${segIdx} (${sdl}): <strong>${seg.nPaneli}</strong> pan. · <strong>${seg.nSlupkow}</strong> sł.${rst}</div>`;
-        } else {
-          const kolor = seg.typ === 'brama' ? 'var(--green)' : '#9b59b6';
-          const etyk = seg.typ === 'brama' ? 'Brama' : 'Furtka';
-          return `<div class="seg-info" style="color:${kolor}">${etyk}: ${seg.szerokosc_mm} mm · 2 słupki · ${formatZl(seg.kRazem)}</div>`;
-        }
-      }).join('');
-    })()}
+      ${htmlSegmentyWidok(obl)}
       <div class="svg-wrapper">${generujSVG(obl)}</div>
       <div>
         <div class="suma-row">
@@ -537,6 +559,11 @@ function htmlZestaw_widok(z, i) {
       </div>
     </div>
   </div>`;
+}
+
+function htmlSelectStrona(aktualnaStrona) {
+  return `<option value="lewa" ${aktualnaStrona !== 'prawa' ? 'selected' : ''}>← Lewa</option>
+          <option value="prawa" ${aktualnaStrona === 'prawa' ? 'selected' : ''}>Prawa →</option>`;
 }
 
 function htmlZestaw_edycja(z, i) {
@@ -599,10 +626,7 @@ function htmlZestaw_edycja(z, i) {
           </div>
         </div>
         <div class="form-row"><label>Strona</label>
-          <select id="edit-brama-strona-${z.id}">
-            <option value="lewa"  ${z.brama?.strona !== 'prawa' ? 'selected' : ''}>← Lewa</option>
-            <option value="prawa" ${z.brama?.strona === 'prawa' ? 'selected' : ''}>Prawa →</option>
-          </select>
+          <select id="edit-brama-strona-${z.id}">${htmlSelectStrona(z.brama?.strona)}</select>
         </div>
         <div class="form-row"><label>Odległość od strony (${jed})</label>
           <input type="number" id="edit-brama-odl-${z.id}"
@@ -627,10 +651,7 @@ function htmlZestaw_edycja(z, i) {
           </div>
         </div>
         <div class="form-row"><label>Strona</label>
-          <select id="edit-furtka-strona-${z.id}">
-            <option value="lewa"  ${z.furtka?.strona !== 'prawa' ? 'selected' : ''}>← Lewa</option>
-            <option value="prawa" ${z.furtka?.strona === 'prawa' ? 'selected' : ''}>Prawa →</option>
-          </select>
+          <select id="edit-furtka-strona-${z.id}">${htmlSelectStrona(z.furtka?.strona)}</select>
         </div>
         <div class="form-row"><label>Odległość od strony (${jed})</label>
           <input type="number" id="edit-furtka-odl-${z.id}"
@@ -714,8 +735,7 @@ function zapiszPozycjeDodatkowa(el) {
   if (!poz) return;
   if (pole === 'wartosc') {
     const v = parseFloat(el.value);
-    if (isNaN(v) || v < 0) { el.style.borderColor = 'var(--red)'; return; }
-    el.style.borderColor = '';
+    if (setInputError(el, isNaN(v) || v < 0)) return;
     poz[pole] = v;
     aktualizujSume();
   } else {
@@ -764,13 +784,12 @@ function renderTypyLista(containerId, typy, typ) {
 
 function zapiszTypPole(el) {
   const { typ, id, pole } = el.dataset;
-  const listaMap = { panel: 'typyPaneli', slupek: 'typySlupkow', brama: 'typyBram', furtka: 'typyFurtek' };
-  const lista = stan.cennik[listaMap[typ]];
+  const lista = stan.cennik[CENNIK_LISTA_MAP[typ]];
   const t = lista?.find(x => x.id === id);
   if (!t) return;
   const v = pole === 'nazwa' ? el.value.trim() : parseFloat(el.value);
-  if (pole !== 'nazwa' && (isNaN(v) || v < 0)) { el.style.borderColor = 'var(--red)'; return; }
-  el.style.borderColor = '';
+  if (pole !== 'nazwa' && setInputError(el, isNaN(v) || v < 0)) return;
+  setInputError(el, false);
   t[pole] = v;
   zapiszDane();
   if (pole !== 'nazwa') { renderZestawy(); aktualizujSume(); }
@@ -778,8 +797,7 @@ function zapiszTypPole(el) {
 }
 
 function dodajTypCennik(typ) {
-  const listaMap = { panel: 'typyPaneli', slupek: 'typySlupkow', brama: 'typyBram', furtka: 'typyFurtek' };
-  const lista = stan.cennik[listaMap[typ]];
+  const lista = stan.cennik[CENNIK_LISTA_MAP[typ]];
   const id = typ[0] + '_' + Date.now();
   if (typ === 'panel') lista.push({ id, nazwa: 'Nowy typ panelu', szerokosc_mm: 2500, cena_zl: 150 });
   if (typ === 'slupek') lista.push({ id, nazwa: 'Nowy typ słupka', szerokosc_mm: 40, cena_zl: 80 });
@@ -792,10 +810,9 @@ function dodajTypCennik(typ) {
 }
 
 function usunTypCennik(typ, id) {
-  const listaMap = { panel: 'typyPaneli', slupek: 'typySlupkow', brama: 'typyBram', furtka: 'typyFurtek' };
-  const lista = stan.cennik[listaMap[typ]];
+  const lista = stan.cennik[CENNIK_LISTA_MAP[typ]];
   if (lista.length <= 1) return;
-  stan.cennik[listaMap[typ]] = lista.filter(t => t.id !== id);
+  stan.cennik[CENNIK_LISTA_MAP[typ]] = lista.filter(t => t.id !== id);
   zapiszDane();
   renderCennik();
   renderZestawy();
@@ -840,12 +857,11 @@ function populujSelectZBrakiem(id, typy, selectedId) {
   else if (prev && (prev === '' || typy.find(t => t.id === prev))) el.value = prev;
 }
 
-let _nowaBramaStrona = 'lewa';
-let _nowaFurtkaStrona = 'lewa';
+const _nowyZestaw = { bramaStrona: 'lewa', furtkaStrona: 'lewa' };
 
 function _setWstawkaStrona(rodzaj, strona) {
-  if (rodzaj === 'brama') _nowaBramaStrona = strona;
-  else _nowaFurtkaStrona = strona;
+  if (rodzaj === 'brama') _nowyZestaw.bramaStrona = strona;
+  else _nowyZestaw.furtkaStrona = strona;
   document.getElementById(`nowy-${rodzaj}-btn-lewa`).classList.toggle('active', strona === 'lewa');
   document.getElementById(`nowy-${rodzaj}-btn-prawa`).classList.toggle('active', strona === 'prawa');
 }
@@ -868,30 +884,15 @@ function onEdytFurtkaTypChange(id) { _onWstawkaTypChange('edit-furtka', `-${id}`
 /* ═══════════════════════════════════════════════
    RENDEROWANIE – RAPORT
    ═══════════════════════════════════════════════ */
-function renderRaport() {
-  const k = stan.klient;
-  const dod = obliczDodatki();
-  let sumaZestawow = 0;
-
-  const zestawyHtml = stan.zestawy.map((z, i) => {
-    const obl = obliczZestaw(z);
-    if (obl.blad) return '';
-    sumaZestawow += obl.kRazem;
-    const dl = stan.ustawienia.jednostka === 'm'
-      ? formatN(z.dlugoscM, 3) + ' m'
-      : obl.dlugoscMM + ' mm';
-
-    // Szczegółowe składowe
-    let skladoweHtml = '';
-    let segIdx = 0;
-    for (const seg of obl.segmenty) {
-      if (seg.typ === 'ogr') {
-        segIdx++;
-        const sdl = stan.ustawienia.jednostka === 'm'
-          ? formatN(seg.dlugoscMM / 1000, 3) + ' m'
-          : seg.dlugoscMM + ' mm';
-        const rst = seg.maRestke ? ` <span class="rap-note">(reszta ${seg.resztaMM} mm)</span>` : '';
-        skladoweHtml += `
+function htmlSkladoweZestawu(obl) {
+  let html = '';
+  let segIdx = 0;
+  for (const seg of obl.segmenty) {
+    if (seg.typ === 'ogr') {
+      segIdx++;
+      const sdl = formatSegDl(seg);
+      const rst = seg.maRestke ? ` <span class="rap-note">(reszta ${seg.resztaMM} mm)</span>` : '';
+      html += `
           <div class="rap-sub-header">Odcinek ${segIdx} – ${sdl}${rst}</div>
           <div class="rap-row rap-indent">
             <span class="l">${escHtml(obl.typPanel.nazwa)} × ${seg.nPaneli} szt.</span>
@@ -909,14 +910,14 @@ function renderRaport() {
             <span class="l">Robocizna (${formatN(seg.dlugoscMM / 1000, 3)} mb × ${formatZl(stan.cennik.robocizna_zl_mb?.wartosc ?? 0)})</span>
             <span class="v">${formatZl(seg.kRobociz)}</span>
           </div>` : ''}`;
-      } else {
-        const etyk = seg.typ === 'brama' ? 'Brama' : 'Furtka';
-        const nazwaEl = seg.el?.typId
-          ? (seg.typ === 'brama'
-            ? stan.cennik.typyBram.find(t => t.id === seg.el.typId)?.nazwa
-            : stan.cennik.typyFurtek.find(t => t.id === seg.el.typId)?.nazwa)
-          : null;
-        skladoweHtml += `
+    } else {
+      const etyk = seg.typ === 'brama' ? 'Brama' : 'Furtka';
+      const nazwaEl = seg.el?.typId
+        ? (seg.typ === 'brama'
+          ? stan.cennik.typyBram.find(t => t.id === seg.el.typId)?.nazwa
+          : stan.cennik.typyFurtek.find(t => t.id === seg.el.typId)?.nazwa)
+        : null;
+      html += `
           <div class="rap-sub-header" style="color:${seg.typ === 'brama' ? 'var(--green)' : '#9b59b6'}">${etyk}${nazwaEl ? ' – ' + escHtml(nazwaEl) : ''} (${seg.szerokosc_mm} mm)</div>
           <div class="rap-row rap-indent">
             <span class="l">${etyk} – materiał</span>
@@ -930,8 +931,22 @@ function renderRaport() {
             <span class="l">Obejmy × ${seg.nObejm} szt.</span>
             <span class="v">${formatZl(seg.kObejmy)}</span>
           </div>`;
-      }
     }
+  }
+  return html;
+}
+
+function renderRaport() {
+  const k = stan.klient;
+  const dod = obliczDodatki();
+  let sumaZestawow = 0;
+
+  const zestawyHtml = stan.zestawy.map((z, i) => {
+    const obl = obliczZestaw(z);
+    if (obl.blad) return '';
+    sumaZestawow += obl.kRazem;
+    const dl = formatDl(z.dlugoscM, obl.dlugoscMM);
+    const skladoweHtml = htmlSkladoweZestawu(obl);
 
     return `
       <div class="rap-row" style="margin-top:8px">
@@ -945,11 +960,10 @@ function renderRaport() {
   const totalPrzed = zaokr(sumaZestawow + dod.suma);
   const total = zaokr(totalPrzed + (stan.dodatki.korekta || 0));
 
-  const geoUrl = k.geo ? `https://www.google.com/maps?q=${k.geo.lat},${k.geo.lon}` : null;
   const klientHtml = [
     k.nazwa && `<div class="rap-row"><span class="l">Nazwa</span><span class="v">${escHtml(k.nazwa)}</span></div>`,
     k.adres && `<div class="rap-row"><span class="l">Adres</span><span class="v">${escHtml(k.adres)}</span></div>`,
-    k.geo && `<div class="rap-row"><span class="l">Lokalizacja GPS</span><span class="v"><a href="${geoUrl}" target="_blank" rel="noopener" style="color:var(--accent)">${k.geo.lat.toFixed(6)}, ${k.geo.lon.toFixed(6)}</a></span></div>`,
+    k.geo && `<div class="rap-row"><span class="l">Lokalizacja GPS</span><span class="v"><a href="${googleMapsUrl(k.geo)}" target="_blank" rel="noopener" style="color:var(--accent)">${k.geo.lat.toFixed(6)}, ${k.geo.lon.toFixed(6)}</a></span></div>`,
     k.telefon && `<div class="rap-row"><span class="l">Telefon</span><span class="v">${escHtml(k.telefon)}</span></div>`,
     k.data && `<div class="rap-row"><span class="l">Data</span><span class="v">${escHtml(k.data)}</span></div>`,
   ].filter(Boolean).join('');
@@ -1159,15 +1173,16 @@ function aktualizujGeoDisplay() {
   const clear = document.getElementById('k-geo-clear');
   if (!display) return;
   if (geo) {
-    const url = `https://www.google.com/maps?q=${geo.lat},${geo.lon}`;
     display.style.display = 'block';
-    display.innerHTML = `📍 <a href="${url}" target="_blank" rel="noopener" style="color:var(--accent)">${geo.lat.toFixed(6)}, ${geo.lon.toFixed(6)}</a>`;
+    display.innerHTML = `📍 <a href="${googleMapsUrl(geo)}" target="_blank" rel="noopener" style="color:var(--accent)">${geo.lat.toFixed(6)}, ${geo.lon.toFixed(6)}</a>`;
     if (clear) clear.style.display = '';
   } else {
     display.style.display = 'none';
     if (clear) clear.style.display = 'none';
   }
 }
+
+const GPS_BTN_HTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> Pobierz GPS';
 
 function pobierzGeo() {
   if (!navigator.geolocation) {
@@ -1181,11 +1196,11 @@ function pobierzGeo() {
       stan.klient.geo = { lat: pos.coords.latitude, lon: pos.coords.longitude };
       zapiszDane();
       aktualizujGeoDisplay();
-      if (btn) { btn.disabled = false; btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> Pobierz GPS'; }
+      if (btn) { btn.disabled = false; btn.innerHTML = GPS_BTN_HTML; }
       toast('Lokalizacja pobrana ✓');
     },
     err => {
-      if (btn) { btn.disabled = false; btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> Pobierz GPS'; }
+      if (btn) { btn.disabled = false; btn.innerHTML = GPS_BTN_HTML; }
       const msg = err.code === 1 ? 'Brak zgody na lokalizację'
         : err.code === 2 ? 'Nie można ustalić lokalizacji'
           : 'Przekroczono czas oczekiwania';
@@ -1327,8 +1342,8 @@ function dodajZestaw() {
 
   const jed = stan.ustawienia.jednostka;
 
-  const brama = czytajWstawke('nowy-brama', '', jed, 4000, _nowaBramaStrona);
-  const furtka = czytajWstawke('nowy-furtka', '', jed, 1000, _nowaFurtkaStrona);
+  const brama = czytajWstawke('nowy-brama', '', jed, 4000, _nowyZestaw.bramaStrona);
+  const furtka = czytajWstawke('nowy-furtka', '', jed, 1000, _nowyZestaw.furtkaStrona);
 
   const nowyZ = { id: 'z' + Date.now(), nazwa, dlugoscM, typPaneluId, typSlupkaId, brama, furtka };
   const obl = obliczZestaw(nowyZ);
@@ -1415,7 +1430,7 @@ function anulujEdycje() {
    ═══════════════════════════════════════════════ */
 function walidujCennikInput(el) {
   const v = parseFloat(el.value);
-  el.style.borderColor = (isNaN(v) || v < 0) ? 'var(--red)' : '';
+  setInputError(el, isNaN(v) || v < 0);
 }
 
 function zapiszCennik(el) {
@@ -1442,34 +1457,36 @@ function resetCennika() {
   toast('Cennik przywrócony do domyślnych');
 }
 
-async function eksportCennik() {
-  let domyslnaNazwa = `cennik_ogr_${dzisiaj().replace(/-/g, '')}.json`;
-
+async function zapiszPlikJSON(dane, nazwaPliku, opisTypu, komunikatSukcesu) {
   if (window.showSaveFilePicker) {
     try {
       const handle = await window.showSaveFilePicker({
-        suggestedName: domyslnaNazwa,
-        types: [{
-          description: 'Plik cennika JSON',
-          accept: { 'application/json': ['.json'] },
-        }],
+        suggestedName: nazwaPliku,
+        types: [{ description: opisTypu, accept: { 'application/json': ['.json'] } }],
       });
       const writable = await handle.createWritable();
-      await writable.write(JSON.stringify(stan.cennik, null, 2));
+      await writable.write(JSON.stringify(dane, null, 2));
       await writable.close();
-      toast('Cennik wyeksportowany pomyślnie');
+      toast(komunikatSukcesu);
       return;
     } catch (e) {
       if (e.name !== 'AbortError') {
         console.error('Błąd File System API:', e);
-        pobierzJSON(stan.cennik, domyslnaNazwa);
+        pobierzJSON(dane, nazwaPliku);
       }
-      return; // w przypadku AbortError lub po fallbacku - kończymy
+      return;
     }
   }
+  pobierzJSON(dane, nazwaPliku);
+}
 
-  // Fallback
-  pobierzJSON(stan.cennik, domyslnaNazwa);
+async function eksportCennik() {
+  await zapiszPlikJSON(
+    stan.cennik,
+    `cennik_ogr_${dzisiaj().replace(/-/g, '')}.json`,
+    'Plik cennika JSON',
+    'Cennik wyeksportowany pomyślnie'
+  );
 }
 
 function importCennik(event) {
@@ -1584,16 +1601,14 @@ function renderRaportKompaktowy() {
       )).join('');
   };
 
-  const cenaPanelu = (e) => e.ilosc > 0 ? formatZl(zaokr(e.koszt / e.ilosc)) : '—';
-  const cenaSlupka = (e) => e.ilosc > 0 ? formatZl(zaokr(e.koszt / e.ilosc)) : '—';
+  const cenaJedn = (e) => e.ilosc > 0 ? formatZl(zaokr(e.koszt / e.ilosc)) : '—';
 
   // Dane klienta
-  const geoUrl = k.geo ? `https://www.google.com/maps?q=${k.geo.lat},${k.geo.lon}` : null;
   const klientLinie = [
     k.nazwa && `<strong>${escHtml(k.nazwa)}</strong>`,
     k.adres && escHtml(k.adres),
     k.telefon && `tel. ${escHtml(k.telefon)}`,
-    k.geo && `<a href="${geoUrl}" target="_blank" rel="noopener" style="color:var(--accent)">${k.geo.lat.toFixed(5)}, ${k.geo.lon.toFixed(5)}</a>`,
+    k.geo && `<a href="${googleMapsUrl(k.geo)}" target="_blank" rel="noopener" style="color:var(--accent)">${k.geo.lat.toFixed(5)}, ${k.geo.lon.toFixed(5)}</a>`,
     k.data && `Data: ${escHtml(k.data)}`,
   ].filter(Boolean).join(' &nbsp;·&nbsp; ');
 
@@ -1628,9 +1643,9 @@ function renderRaportKompaktowy() {
         </thead>
         <tbody>
           ${sekcja('Panele', panele,
-              e => `${e.ilosc} szt.`, cenaPanelu)}
+              e => `${e.ilosc} szt.`, cenaJedn)}
           ${sekcja('Słupki', slupki,
-              e => `${e.ilosc} szt.`, cenaSlupka)}
+              e => `${e.ilosc} szt.`, cenaJedn)}
           ${sekcja('Bramy', bramy,
               e => `${e.ilosc} szt.`, e => '—')}
           ${sekcja('Furtki', furtki,
@@ -1703,9 +1718,7 @@ function wyslijEmail(tryb) {
     const obl = obliczZestaw(z);
     if (obl.blad) continue;
     sumaZ += obl.kRazem;
-    const dl = stan.ustawienia.jednostka === 'm'
-      ? formatN(z.dlugoscM, 2) + ' m'
-      : obl.dlugoscMM + ' mm';
+    const dl = formatDl(z.dlugoscM, obl.dlugoscMM, 2);
     tekst += `${i + 1}. ${z.nazwa}  (${dl})  →  ${formatZl(obl.kRazem)}\n`;
 
     if (tryb === 'szczegolowy') {
@@ -1713,9 +1726,7 @@ function wyslijEmail(tryb) {
       for (const seg of obl.segmenty) {
         if (seg.typ === 'ogr') {
           segIdx++;
-          const sdl = stan.ustawienia.jednostka === 'm'
-            ? formatN(seg.dlugoscMM / 1000, 2) + ' m'
-            : seg.dlugoscMM + ' mm';
+          const sdl = formatSegDl(seg, 2);
           tekst += `   Odcinek ${segIdx} (${sdl}): ${seg.nPaneli} × panel`;
           const typP = stan.cennik.typyPaneli.find(t => t.id === z.typPaneluId);
           if (typP) tekst += ` ${typP.nazwa}`;
@@ -1770,37 +1781,10 @@ function wyslijEmail(tryb) {
 }
 
 async function eksportujWycene() {
-  let nazwaKlienta = stan.klient && stan.klient.nazwa ? stan.klient.nazwa.trim() : '';
-  let czystaNazwa = nazwaKlienta.replace(/[^a-zA-Z0-9ąćęłńóśźżĄĆĘŁŃÓŚŹŻ_\- ]/g, '').replace(/\s+/g, '_');
-  if (!czystaNazwa) czystaNazwa = 'wycena';
-
-  let domyslnaNazwa = `${czystaNazwa}_${dzisiaj().replace(/-/g, '')}.json`;
-
-  if (window.showSaveFilePicker) {
-    try {
-      const handle = await window.showSaveFilePicker({
-        suggestedName: domyslnaNazwa,
-        types: [{
-          description: 'Plik wyceny JSON',
-          accept: { 'application/json': ['.json'] },
-        }],
-      });
-      const writable = await handle.createWritable();
-      await writable.write(JSON.stringify(stan, null, 2));
-      await writable.close();
-      toast('Wycena zapisana pomyślnie');
-      return;
-    } catch (e) {
-      if (e.name !== 'AbortError') {
-        console.error('Błąd File System API:', e);
-        pobierzJSON(stan, domyslnaNazwa);
-      }
-      return; // w przypadku AbortError lub po fallbacku - kończymy
-    }
-  }
-
-  // Fallback np. dla Firefox / Safari / HTTP
-  pobierzJSON(stan, domyslnaNazwa);
+  const nazwaKlienta = stan.klient?.nazwa?.trim() || '';
+  const czystaNazwa = nazwaKlienta.replace(/[^a-zA-Z0-9ąćęłńóśźżĄĆĘŁŃÓŚŹŻ_\- ]/g, '').replace(/\s+/g, '_') || 'wycena';
+  const nazwaPliku = `${czystaNazwa}_${dzisiaj().replace(/-/g, '')}.json`;
+  await zapiszPlikJSON(stan, nazwaPliku, 'Plik wyceny JSON', 'Wycena zapisana pomyślnie');
 }
 
 function importujWycene(event) {
